@@ -112,11 +112,12 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             log.internal_info(
                 f"UDS request to send '{['0x{:02X}'.format(i) for i in msg_to_send]}'"
             )
-            size_msg = 63
+            size_msg = 62
             for msg_to_send in [
                 msg_to_send[i : i + size_msg]
                 for i in range(0, len(msg_to_send), size_msg)
             ]:
+                print("message to send")
                 resp = self.uds_config.send(
                     msg_to_send,
                     responseRequired=response_required,
