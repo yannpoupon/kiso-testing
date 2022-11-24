@@ -117,7 +117,6 @@ class UdsAuxiliary(UdsBaseAuxiliary):
                 msg_to_send[i : i + size_msg]
                 for i in range(0, len(msg_to_send), size_msg)
             ]:
-                print("message to send")
                 resp = self.uds_config.send(
                     msg_to_send,
                     responseRequired=response_required,
