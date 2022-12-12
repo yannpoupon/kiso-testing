@@ -419,6 +419,10 @@ class BasicTestSuite(unittest.TestSuite):
                     continue
 
             if not debug:
+                log.info(f"test running {test}")
+                log.info(f"failed suite setup : {self.failed_suite_setups}")
+                log.info(f"test suite id : {test.test_suite_id}")
+                log.info(f"test case id {test.test_case_id}")
                 if test.test_suite_id in self.failed_suite_setups:
                     result.addSkip(
                         test,
