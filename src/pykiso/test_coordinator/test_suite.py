@@ -387,8 +387,7 @@ class BasicTestSuite(unittest.TestSuite):
         if isinstance(test, BasicTestSuiteSetup):
             if result._error_occurred:
                 log.info(f"error occured for test {test}")
-                if isinstance(test, BasicTestSuiteSetup):
-                    self.failed_suite_setups.add(test.test_suite_id)
+                self.failed_suite_setups.add(test.test_suite_id)
 
     def run(self, result: BannerTestResult, debug: bool = False) -> BannerTestResult:
         """Override run method from unittest.suite.TestSuite.
@@ -424,6 +423,7 @@ class BasicTestSuite(unittest.TestSuite):
                 log.info(f"test suite id : {test.test_suite_id}")
                 log.info(f"test case id {test.test_case_id}")
                 if test.test_suite_id in self.failed_suite_setups:
+                    log.info(f"skipping test {test}")
                     result.addSkip(
                         test,
                         f"Suite Setup failed for test suite {test.test_suite_id}",
