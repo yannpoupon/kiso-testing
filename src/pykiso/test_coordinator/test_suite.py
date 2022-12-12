@@ -385,10 +385,10 @@ class BasicTestSuite(unittest.TestSuite):
         :param result: unittest result object
         """
         if isinstance(test, BasicTestSuiteSetup):
-            for issue in [result.failures, result.errors]:
-                for suite_type, _ in issue:
-                    if isinstance(suite_type, BasicTestSuiteSetup):
-                        self.failed_suite_setups.add(test.test_suite_id)
+            if result._error_occurred:
+                log.info(f"error occured for test {test}")
+                if isinstance(test, BasicTestSuiteSetup):
+                    self.failed_suite_setups.add(test.test_suite_id)
 
     def run(self, result: BannerTestResult, debug: bool = False) -> BannerTestResult:
         """Override run method from unittest.suite.TestSuite.
