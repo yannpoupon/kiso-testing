@@ -89,7 +89,7 @@ class TestInfo(xmlrunner.result._TestInfo):
         :return: the wrapped test case's representation.
         """
         log.info(self.test_id)
-        module, test_case, test_method = self.test_id.split(".")
+        _, module, test_case, test_method = self.test_id.split(".")
         return f"{test_method} ({module}.{test_case})"
 
 
