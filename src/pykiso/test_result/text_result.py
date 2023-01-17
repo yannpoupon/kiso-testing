@@ -27,6 +27,7 @@ import sys
 import textwrap
 import time
 import typing
+import unittest
 from contextlib import nullcontext
 from shutil import get_terminal_size
 from typing import List, Optional, TextIO, Union
@@ -120,6 +121,8 @@ class BannerTestResult(TextTestResult):
         super().__init__(stream, descriptions, verbosity)
         # to determine whether the test succeeded or failed
         self._error_occurred = False
+        # to determine if a subtest failed or not
+        self._subtest_failed = False
         # fallback is the default width in Jenkins
         size = get_terminal_size(fallback=(150, 24))
         # avoid border effects due to newlines
@@ -178,6 +181,7 @@ class BannerTestResult(TextTestResult):
         """
         super().startTest(test)
         self._error_occurred = False
+        self._subtest_failed = False
         top_str = "RUNNING TEST: "
         module_name = test.__module__
         test_name = str(test)
@@ -200,7 +204,9 @@ class BannerTestResult(TextTestResult):
         """
         test.stop_time = time.time()
         test.elapsed_time = test.stop_time - test.start_time
-        result = "FAILED" if self._error_occurred else "PASSED"
+        result = (
+            "FAILED" if (self._error_occurred or self._subtest_failed) else "PASSED"
+        )
         bot_str = f"END OF TEST: {test}"
         result_str = f"  ->  {result} in {test.elapsed_time:.3f}s"
         if len(bot_str + result_str) < self.width - self.BANNER_CHAR_WIDTH:
@@ -240,6 +246,15 @@ class BannerTestResult(TextTestResult):
         """
         super().addError(test, err)
         self._error_occurred = True
+
+    def addSubTest(
+        self,
+        test: Union[BasicTest, BaseTestSuite],
+        subtest: unittest.case._SubTest,
+        err: ExcInfoType,
+    ) -> None:
+        super().addSubTest(test, subtest, err)
+        self._subtest_failed = True
 
     def printErrorList(self, flavour: str, errors: List[tuple]):
         """Print all errors at the end of the whole tests execution.
