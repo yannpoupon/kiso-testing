@@ -45,11 +45,11 @@ YKUR_PORT_STATE_ERROR = 0xAA
 
 # Dictionary with the byte to get a specific target
 YKUR_TARGET_PORT = {
-    1: 0x01,
-    2: 0x02,
-    3: 0x03,
-    4: 0x04,
     0: 0x11,  # on board relay
+    1: 0x01,  # external relay 1
+    2: 0x02,  # external relay 2
+    3: 0x03,  # external relay 3
+    4: 0x04,  # external relay 4
     "external_relays": 0x0A,
     "all": 0xAA,
 }
@@ -93,7 +93,7 @@ class YkurAuxiliary(YepkitBase):
     def check_port_number(self, port_number: str):
         """Check if the port indicated is a port of the device
 
-        :raises YkushPortNumberError: Raise error if no port has this number
+        :raises PortNumberError: Raise error if no port has this number
         """
         if port_number not in range(0, self.number_of_port + 1):
             raise PortNumberError(
@@ -105,7 +105,7 @@ class YkurAuxiliary(YepkitBase):
     def get_relay_state(self, port_number: int) -> PortState:
         """Returns the state of an external relays or the on board relay.
 
-        :raises YkurStatePortNotRetrieved: If the state couldn't be retrieved
+        :raises StatePortNotRetrieved: If the state couldn't be retrieved
         :return: 0 if the port is off, 1 if the port is on
         """
         self.check_port_number(port_number)
@@ -119,9 +119,9 @@ class YkurAuxiliary(YepkitBase):
             raise StatePortNotRetrieved("The state of the relay couldn't be retrieved")
 
     def get_all_ports_state(self) -> List[PortState]:
-        """Returns the state of all the external relays.
+        """Returns the state of all the relays.
 
-        :raises YkurStatePortNotRetrieved: The states couldn't be retrieved
+        :raises StatePortNotRetrieved: The states couldn't be retrieved
         :return: list with 0 if a port is off, 1 if on.
             The order is [on board relay, external relay 1, external relay 2 ...]
         """
@@ -135,7 +135,7 @@ class YkurAuxiliary(YepkitBase):
             relays On or Off.
 
         :param target: number of the port or "external_relays" or "all_relays"
-        :raises YkurSetStateError: if the operation had an error
+        :raises SetStateError: if the operation had an error
         """
         _, _, status = self._raw_sendreceive([state, YKUR_TARGET_PORT[target]])
 
@@ -152,42 +152,42 @@ class YkurAuxiliary(YepkitBase):
     def set_relay_on(self, port_number: int):
         """Power on an external relay or the on board relay.
 
-        :raises YkushSetStateError: if the operation had an error
+        :raises SetStateError: if the operation had an error
         """
         self.set_state(port_number, state=RelayAction.SET_ON)
 
     def set_relay_off(self, port_number: int):
         """Power off an external relay or the on board relay.
 
-        :raises YkushSetStateError: if the operation had an error
+        :raises SetStateError: if the operation had an error
         """
         self.set_state(port_number, state=RelayAction.SET_OFF)
 
     def set_all_relays_on(self):
         """Power on all the external relays and the on board relay.
 
-        :raises YkushSetStateError: if the operation had an error
+        :raises SetStateError: if the operation had an error
         """
         self.set_state("all", state=RelayAction.SET_ON)
 
     def set_all_relays_off(self):
         """Power off all the external relays and the on board relay.
 
-        :raises YkushSetStateError: if the operation had an error
+        :raises SetStateError: if the operation had an error
         """
         self.set_state("all", state=RelayAction.SET_OFF)
 
     def set_all_external_relays_on(self):
         """Power on all the external relays.
 
-        :raises YkushSetStateError: if the operation had an error
+        :raises SetStateError: if the operation had an error
         """
         self.set_state("external_relays", state=RelayAction.SET_ON)
 
     def set_all_external_relays_off(self):
         """Power off all the external relays.
 
-        :raises YkushSetStateError: if the operation had an error
+        :raises SetStateError: if the operation had an error
         """
         self.set_state("external_relays", state=RelayAction.SET_OFF)
 

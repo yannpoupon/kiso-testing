@@ -99,6 +99,8 @@ class MyTest1(pykiso.BasicTest):
         )
         self.assertTrue(next(side_effect))
         logging.info(f"I HAVE RUN 0.1.1 for tag {self.tag}!")
+        with self.subTest():
+            self.assertTrue(False)
 
     @pykiso.retry_test_case(max_try=3)
     def tearDown(self):

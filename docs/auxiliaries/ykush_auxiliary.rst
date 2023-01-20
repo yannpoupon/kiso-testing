@@ -3,7 +3,7 @@ ykush_auxiliary
 
 Example can be found here :ref:`ykush_aux`.
 
-.. automodule:: pykiso.lib.auxiliaries.ykush_auxiliary
+.. automodule:: pykiso.lib.auxiliaries.yepkit_auxiliaries.ykush_auxiliary
     :members:
 
 .. warning::

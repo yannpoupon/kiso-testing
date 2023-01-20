@@ -18,3 +18,4 @@ Included Auxiliaries
     simulated_auxiliary
     uds_auxiliary
     ykush_auxiliary
+    ykur_auxiliary

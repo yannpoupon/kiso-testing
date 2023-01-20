@@ -1,10 +1,10 @@
-.. _ykush_aux:
+.. _ykur_aux:
 
-Controlling an Yepkit USB hub
+Controlling an Yepkit USB relay
 ===============================
 
-The ykush auxiliary offers commands to control an Yepkit USB hub,
-allowing to switch the USB ports on and off individually.
+The ykur auxiliary offers commands to control an Yepkit USB relay,
+allowing to switch the on board relay and external relay on and off individually.
 
 
 Usage Examples
@@ -16,13 +16,13 @@ in the config yaml. Example:
 .. code:: yaml
 
   auxiliaries:
-      ykush_aux:
+      ykur_aux:
         config:
           # Serial number to connect to. Example: "YK00006"
           serial_number : null # null = auto detection.
-        type: pykiso.lib.auxiliaries.yepkit.auxiliaries.ykush_auxiliary:YkushAuxiliary
+        type: pykiso.lib.auxiliaries.yepkit_auxiliaries.ykush_auxiliary:YkurAuxiliary
 
 Below find a example for the usage in a test script. All available methods are shown there.
 
-.. literalinclude:: ../../examples/test_suite_ykush/test_ykush.py
+.. literalinclude:: ../../examples/test_suite_ykur/test_ykur.py
     :language: python
