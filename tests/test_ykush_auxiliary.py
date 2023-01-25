@@ -10,14 +10,16 @@
 
 import pytest
 
-from pykiso.lib.auxiliaries.ykush_auxiliary import (
+from pykiso.lib.auxiliaries.yepkit_auxiliaries.common.yepkit_base import (
+    DeviceNotFound,
+)
+from pykiso.lib.auxiliaries.yepkit_auxiliaries.ykush_auxiliary import (
     YKUSH_PORT_STATE_OFF,
     YKUSH_PORT_STATE_ON,
+    PortNumberError,
+    SetStateError,
+    StatePortNotRetrieved,
     YkushAuxiliary,
-    YkushDeviceNotFound,
-    YkushPortNumberError,
-    YkushSetStateError,
-    YkushStatePortNotRetrieved,
 )
 
 
@@ -68,7 +70,7 @@ def raw_send_mock(mocker, ykush_aux_instance):
 
 
 def test_no_ykush_device_found_init():
-    with pytest.raises(YkushDeviceNotFound):
+    with pytest.raises(DeviceNotFound):
         YkushAuxiliary(serial_number=12)
 
 
@@ -83,53 +85,9 @@ def test_ykush_instance(mocker, ykush_aux_instance):
     assert power_on_mocker.call_count == 2
 
 
-def test_connect_device_serial(ykush_aux_instance, hid_enumerate_mock):
-    serial = "YK28389"
-    device = {
-        "vendor_id": 0x04D8,
-        "product_id": 0x0042,
-        "serial_number": serial,
-        "path": "test_path",
-    }
-    hid_enumerate_mock.return_value = [device]
-
-    ykush_aux_instance.connect_device(serial=serial)
-
-    hid_enumerate_mock.assert_called_once_with(0, 0)
-    assert ykush_aux_instance._product_id == device["product_id"]
-    assert ykush_aux_instance._path == device["path"]
-
-
-@pytest.mark.parametrize(
-    "list_device_returned",
-    [
-        ([]),
-        (
-            [
-                {
-                    "vendor_id": 0x04D8,
-                    "product_id": 0x0042,
-                    "serial_number": "YK28389",
-                    "path": "test_path",
-                }
-            ]
-        ),
-    ],
-)
-def test_connect_device_no_device_found(
-    ykush_aux_instance, hid_enumerate_mock, list_device_returned
-):
-    hid_enumerate_mock.return_value = list_device_returned
-    ykush_aux_instance._ykush_device = None
-    with pytest.raises(YkushDeviceNotFound):
-        ykush_aux_instance.connect_device(serial=12)
-
-    hid_enumerate_mock.assert_called_once_with(0, 0)
-
-
 def test_check_port_number(ykush_aux_instance):
     port_number = 12
-    with pytest.raises(YkushPortNumberError):
+    with pytest.raises(PortNumberError):
         ykush_aux_instance.check_port_number(port_number)
 
 
@@ -207,7 +165,7 @@ def test_set_port_state_fail(
     port_number = 1
     get_port_mock.return_value = state_returned
 
-    with pytest.raises(YkushSetStateError):
+    with pytest.raises(SetStateError):
         ykush_aux_instance.set_port_state(port_number, state)
     get_port_mock.assert_called_once_with(port_number)
     raw_send_mock.assert_called_once()
@@ -217,9 +175,9 @@ def test_set_port_state_fail_state_not_found(
     ykush_aux_instance, raw_send_mock, get_port_mock
 ):
     port_number = 1
-    get_port_mock.side_effect = YkushStatePortNotRetrieved()
+    get_port_mock.side_effect = StatePortNotRetrieved()
 
-    with pytest.raises(YkushSetStateError):
+    with pytest.raises(SetStateError):
         ykush_aux_instance.set_port_state(port_number, YKUSH_PORT_STATE_ON)
     get_port_mock.assert_called_once_with(port_number)
     raw_send_mock.assert_called_once()
@@ -280,7 +238,7 @@ def test_set_all_ports_state_fail(
 ):
     get_all_port_mock.return_value = state_returned
 
-    with pytest.raises(YkushSetStateError):
+    with pytest.raises(SetStateError):
         ykush_aux_instance.set_all_ports(state)
     get_all_port_mock.assert_called_once_with()
     raw_send_mock.assert_called_once()
@@ -289,9 +247,9 @@ def test_set_all_ports_state_fail(
 def test_set_all_ports_state_fail_state_not_found(
     ykush_aux_instance, raw_send_mock, get_all_port_mock
 ):
-    get_all_port_mock.side_effect = YkushStatePortNotRetrieved()
+    get_all_port_mock.side_effect = StatePortNotRetrieved()
 
-    with pytest.raises(YkushSetStateError):
+    with pytest.raises(SetStateError):
         ykush_aux_instance.set_all_ports(YKUSH_PORT_STATE_ON)
     get_all_port_mock.assert_called_once_with()
     raw_send_mock.assert_called_once()
@@ -370,7 +328,7 @@ def test_get_all_ports_state(
 def test_get_all_ports_state_fail(ykush_aux_instance, raw_send_receive_mock):
     raw_send_receive_mock.return_value = [0x0, 0x1, 0x1, 0x1]
 
-    with pytest.raises(YkushStatePortNotRetrieved):
+    with pytest.raises(StatePortNotRetrieved):
         ykush_aux_instance.get_all_ports_state()
 
 
@@ -395,7 +353,7 @@ def test_get_all_ports_state_firmware_version_inferior_1_fail(
         ykush_aux_instance, "get_firmware_version", return_value=[0.2]
     )
     raw_send_receive_mock.side_effect = [[0x0, 0x1], [0x1, 0x17], [0x1, 0x3]]
-    with pytest.raises(YkushStatePortNotRetrieved):
+    with pytest.raises(StatePortNotRetrieved):
         list_states = ykush_aux_instance.get_all_ports_state()
 
     get_firmware_version_mock.assert_called_once()

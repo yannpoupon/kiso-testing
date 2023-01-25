@@ -19,18 +19,18 @@ Ykush Auxiliary
 
 """
 import logging
-from contextlib import contextmanager
-from enum import IntEnum
-from typing import Any, List, Optional, Tuple
+from typing import List, Tuple
 
-import hid
-
-from pykiso.interfaces.dt_auxiliary import DTAuxiliaryInterface
+from pykiso.lib.auxiliaries.yepkit_auxiliaries.common.yepkit_base import (
+    PortNumberError,
+    PortState,
+    SetStateError,
+    StatePortNotRetrieved,
+    YepkitBase,
+)
 
 log = logging.getLogger(__name__)
 
-# YKUSH device USB VID
-YKUSH_USB_VID = 0x04D8
 # YKUSH PIDs when in normal operation mode: YKUSH beta, YKUSH, YKUSH3, YKUSHXS
 YKUSH_USB_PID_LIST = (0x0042, 0xF2F7, 0xF11B, 0xF0CD)
 
@@ -49,42 +49,7 @@ YKUSH_PORT_STATE_ERROR = 255
 YKUSH_PORT_STATE_DICT = {0: "OFF", 1: "ON", 255: "ERROR"}
 
 
-class YkushError(Exception):
-    """General Ykush specific exception used as basis for all others."""
-
-    pass
-
-
-class YkushDeviceNotFound(YkushError):
-    """Raised when no Ykush device is found."""
-
-    pass
-
-
-class YkushStatePortNotRetrieved(YkushError):
-    """Raised when the state of a port can't be retrieved."""
-
-    pass
-
-
-class YkushSetStateError(YkushError):
-    """Raised when a port couldn't be switched on or off."""
-
-    pass
-
-
-class YkushPortNumberError(YkushError):
-    """Raised when the port number doesn't exist."""
-
-    pass
-
-
-class PortState(IntEnum):
-    OFF = 0
-    ON = 1
-
-
-class YkushAuxiliary(DTAuxiliaryInterface):
+class YkushAuxiliary(YepkitBase):
     """Auxiliary used to power on and off the ports."""
 
     def __init__(self, serial_number: str = None, **kwargs):
@@ -92,20 +57,11 @@ class YkushAuxiliary(DTAuxiliaryInterface):
 
         :param serial: Serial number of the device to connect, if he is not defined
             then it will connect to the first Ykush device it find, defaults to None.
-        :raises YkushDeviceNotFound: If no device is found or the serial number
+        :raises DeviceNotFound: If no device is found or the serial number
             is not the serial of one device.
         """
-        super().__init__(
-            is_proxy_capable=False,
-            tx_task_on=False,
-            rx_task_on=False,
-            connector_required=False,
-            **kwargs,
-        )
-        self._ykush_device = None
-        self._product_id = None
-        self._path = None
-        self.connect_device(serial_number)
+        super().__init__(**kwargs)
+        self.connect_device(list_pid=YKUSH_USB_PID_LIST, serial=serial_number)
         self.number_of_port = self.get_number_of_port()
 
     def _create_auxiliary_instance(self) -> bool:
@@ -124,62 +80,13 @@ class YkushAuxiliary(DTAuxiliaryInterface):
         log.internal_info("Auxiliary instance deleted")
         return True
 
-    def connect_device(self, serial: int = None):
-        """Find an Ykush device, will automatically connect to the first one
-        it find, if you have multiple connected you have to precise the serial
-        number of the device.
-
-        :param serial: serial number of the device, defaults to None
-        :raises YkushDeviceNotFound: if no ykush device is found
-        """
-        list_ykush_device = []
-        self._path = None
-        # try to locate a device
-        for device in hid.enumerate(0, 0):
-            if (
-                device["vendor_id"] == YKUSH_USB_VID
-                and device["product_id"] in YKUSH_USB_PID_LIST
-            ):
-                list_ykush_device.append(device["serial_number"])
-                if serial is None or serial == device["serial_number"]:
-                    self._product_id = device["product_id"]
-                    self._path = device["path"]
-
-        if self._path is not None:
-            self._ykush_device = hid.device()
-            self._ykush_device.open_path(self._path)
-        else:
-            if list_ykush_device == []:
-                raise YkushDeviceNotFound(
-                    "Could not connect to a ykush hub, no device was found."
-                )
-            else:
-                raise YkushDeviceNotFound(
-                    f"The serial numbers available are : {list_ykush_device}\n"
-                    f"No device was found with the serial number {serial}\n"
-                    if serial
-                    else "",
-                )
-
-    @contextmanager
-    def _open_and_close_device(self):
-        """Context manager to open and close device every time we send a message
-        otherwise  we will get an empty message every time in response.
-        """
-        self._ykush_device = hid.device()
-        self._ykush_device.open_path(self._path)
-        try:
-            yield
-        finally:
-            self._ykush_device.close()
-
     def check_port_number(self, port_number: int):
         """Check if the port indicated is a port of the device
 
         :raises YkushPortNumberError: Raise error if no port has this number
         """
         if port_number not in range(1, self.number_of_port + 1):
-            raise YkushPortNumberError(
+            raise PortNumberError(
                 f"The port number {port_number} is not valid for the device,"
                 f" it has only {self.number_of_port} ports"
             )
@@ -192,11 +99,6 @@ class YkushAuxiliary(DTAuxiliaryInterface):
         :return: ON, OFF
         """
         return YKUSH_PORT_STATE_DICT[state]
-
-    def get_serial_number_string(self) -> str:
-        """Returns the device serial number string"""
-        with self._open_and_close_device():
-            return self._ykush_device.get_serial_number_string()
 
     def get_number_of_port(self) -> int:
         """Returns the number of port on the ykush device"""
@@ -230,7 +132,7 @@ class YkushAuxiliary(DTAuxiliaryInterface):
                     PortState.ON if p > 0x10 else PortState.OFF for p in recvbytes[1:]
                 ]
             else:
-                raise YkushStatePortNotRetrieved(
+                raise StatePortNotRetrieved(
                     "The states of the ports couldn't be retrieved"
                 )
         else:
@@ -243,7 +145,7 @@ class YkushAuxiliary(DTAuxiliaryInterface):
                         PortState.ON if port_state > 0x10 else PortState.OFF
                     )
                 else:
-                    raise YkushStatePortNotRetrieved(
+                    raise StatePortNotRetrieved(
                         f"The state of the port {port_number} couldn't be retrieved"
                     )
             return list_state
@@ -283,13 +185,13 @@ class YkushAuxiliary(DTAuxiliaryInterface):
 
         try:
             state_port = self.get_port_state(port_number)
-        except YkushStatePortNotRetrieved as e:
-            raise YkushSetStateError(
+        except StatePortNotRetrieved as e:
+            raise SetStateError(
                 f"The state of the action to power {str_state}"
                 "couldn't be confirmed because the state of the port can't be retrieved"
             ) from e
         if state_port != PortState[str_state]:
-            raise YkushSetStateError(
+            raise SetStateError(
                 f"There was an error trying to power {str_state.lower()} the port,"
                 f"the port {port_number} is {state_port}"
             )
@@ -319,14 +221,14 @@ class YkushAuxiliary(DTAuxiliaryInterface):
 
         try:
             states_port = self.get_all_ports_state()
-        except YkushStatePortNotRetrieved as e:
-            raise YkushSetStateError(
+        except StatePortNotRetrieved as e:
+            raise SetStateError(
                 f"The state of the action to power {str_state}"
                 "couldn't be confirmed because the state of the ports can't be retrieved"
             ) from e
 
         if not (PortState[str_state] == states_port[0] and len(set(states_port)) == 1):
-            raise YkushSetStateError(
+            raise SetStateError(
                 "There was an error during the power "
                 f"{str_state.lower()},"
                 f"the ports have the following states : {states_port}"
@@ -379,15 +281,3 @@ class YkushAuxiliary(DTAuxiliaryInterface):
             if recvpacket is None or len(recvpacket) < YKUSH_USB_PACKET_PAYLOAD_SIZE:
                 return [0xFF] * YKUSH_USB_PACKET_PAYLOAD_SIZE
             return recvpacket[:YKUSH_USB_PACKET_PAYLOAD_SIZE]
-
-    def _run_command(self, cmd_message: Any, cmd_data: Optional[bytes]) -> None:
-        """Not used.
-
-        Simply respect the interface.
-        """
-
-    def _receive_message(self, timeout_in_s: float) -> None:
-        """Not used.
-
-        Simply respect the interface.
-        """
