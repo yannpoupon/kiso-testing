@@ -232,7 +232,6 @@ class YkurAuxiliary(YepkitBase):
         log.info(f"message received {recvpacket}")
         print(recvpacket[:3])
 
-        log.info(f"message received {recvpacket}")
         if recvpacket is None or len(recvpacket) < YEPKIT_USB_PACKET_PAYLOAD_SIZE:
             return [YKUR_PROTO_ERROR] * 3
         return recvpacket[:3]
