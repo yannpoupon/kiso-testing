@@ -167,6 +167,7 @@ class CCPCanCan(CChannel):
         self.boottime_epoch = boottime_epoch
         self._initialize_trace()
         self.merge_trc_logs = merge_trc_logs
+        self.trace_running = False
 
         if bus_error_warning_filter:
             logging.getLogger("can.pcan").addFilter(PcanFilter())
@@ -286,6 +287,7 @@ class CCPCanCan(CChannel):
                 PCANBasic.PCAN_PARAMETER_ON,
             )
             log.internal_info("Trace activated")
+            self.trace_running = True
             self.trc_count += 1
         except RuntimeError:
             log.error(f"Logging for {self.channel} not activated")
@@ -327,6 +329,7 @@ class CCPCanCan(CChannel):
         if self.logging_activated:
             try:
                 result = self.raw_pcan_interface.Uninitialize(PCANBasic.PCAN_NONEBUS)
+                self.trace_running = False
             except Exception as e:
                 log.exception(f"Error in call to Uninitialize: {e}")
             else:
@@ -509,3 +512,32 @@ class CCPCanCan(CChannel):
         """Destructor method."""
         if self.logging_activated and self.merge_trc_logs:
             self._merge_trc()
+
+    def stop_pcan_trace(self):
+        """
+        Stops the PCAN trace if it is currently running.
+        :return: None
+        """
+
+        if not self.trace_running:
+            return
+
+        pcan_channel = getattr(PCANBasic, "PCAN_USBBUS1")
+        self._pcan_set_value(
+            pcan_channel,
+            PCANBasic.PCAN_TRACE_STATUS,
+            PCANBasic.PCAN_PARAMETER_OFF,
+        )
+        self.trace_running = False
+
+    def start_pcan_trace(self, trace_file: str | None) -> None:
+        """
+        Start the PCAN trace.
+        :param trace_file: The file path to save the trace data. If None, the trace data will not be saved.
+        :type trace_file: str or None
+        """
+        if self.trace_running:
+            return
+        self.trace_path = Path(trace_file) if trace_file else None
+        self._pcan_configure_trace()
+        self.trace_running = True
