@@ -1,4 +1,5 @@
 import getpass
+import json
 from pathlib import Path
 
 import click
@@ -111,4 +112,5 @@ def cli_upload(
                 timeout=timeout,
             )
         )
-    print(f"The test results can be found in JIRA by: {responses}")
+    responses_result_str = json.dumps(responses, indent=2)
+    print(f"The test results can be found in JIRA by: {responses_result_str}")
