@@ -70,6 +70,15 @@ MUTE_CONTENT_ASSERTION = ["assertIsInstance", "assertNotIsInstance"]
 # Jinja template location
 SCRIPT_PATH = str(Path(__file__).resolve().parent)
 REPORT_TEMPLATE = "templates/report_template.html.j2"
+UNITTEST_DEPRECATED_FUNCTION_MAPPING: dict[str:str] = {
+    "assertEqual": "assertEquals",
+    "assertNotEqual": "assertNotEquals",
+    "assertAlmostEqual": "assertAlmostEquals",
+    "assertNotAlmostEqual": "assertNotAlmostEquals",
+    "assertRaisesRegex": "assertRaisesRegexp",
+    "assertRegex": "assertRegexpMatches",
+    "assertNotRegex": "assertNotRegexpMatches",
+}
 
 
 @dataclass
@@ -313,10 +322,16 @@ def assert_decorator(assert_method: types.MethodType):
         return: The assertion method output if it exists. Otherwise, None
         """
         global _FUNCTION_TO_APPLY
+        original_logic = False
         try:
             # Context
             currentframe = inspect.currentframe()
             f_back = currentframe.f_back
+
+            # Case where the assert is called in unittest so we don't want to add any logic
+            if f_back.f_globals["__name__"] == "unittest.case":
+                original_logic = True
+                return assert_method(*args, **kwargs)
 
             test_name = determine_parent_test_function(f_back.f_code.co_name)
             test_case_inst: TestCase = assert_method.__self__
@@ -352,12 +367,23 @@ def assert_decorator(assert_method: types.MethodType):
 
             # 1.3. Get variable name
             found = False
+            deprecated_try = False
             while not found:
                 try:
                     var_name = _get_variable_name(f_back, assert_name)
                     found = True
                 except IndexError:
                     f_back = f_back.f_back
+                except TypeError:
+                    # replace assert name with depecrated function assert name
+                    if not deprecated_try and assert_name in UNITTEST_DEPRECATED_FUNCTION_MAPPING.keys():
+                        deprecated_try = True
+                        f_back = currentframe.f_back
+                        assert_name = UNITTEST_DEPRECATED_FUNCTION_MAPPING[assert_name]
+                        continue
+                    log.error(f"Step report error: Variable name couldn't be find for {currentframe.f_back}")
+                    var_name = "Variable name not found"
+                    break
 
             # 1.4. Get Expected value
             expected = _get_expected(assert_name, arguments)
@@ -377,6 +403,8 @@ def assert_decorator(assert_method: types.MethodType):
             )
 
         except Exception as e:
+            if original_logic:
+                raise e
             log.exception(f"Unable to update Step due to exception: {e}")
 
         # Run the assert method and mark the test as failed if the AssertionError is raised

@@ -27,9 +27,7 @@ def test_case():
     tc.assertAlmostEqual = assert_step_report.assert_decorator(tc.assertAlmostEqual)
 
     # Add the step-report parameters
-    tc.step_report = assert_step_report.StepReportData(
-        header={}, message="", success=True, current_table=None
-    )
+    tc.step_report = assert_step_report.StepReportData(header={}, message="", success=True, current_table=None)
 
     return tc
 
@@ -53,9 +51,7 @@ def remote_test_case(mocker):
     tc.assertEqual = assert_step_report.assert_decorator(tc.assertEqual)
 
     # Add the step-report parameters
-    tc.step_report = assert_step_report.StepReportData(
-        header={}, message="", success=True, current_table=None
-    )
+    tc.step_report = assert_step_report.StepReportData(header={}, message="", success=True, current_table=None)
     return tc
 
 
@@ -140,9 +136,9 @@ def test_assert_decorator_reraise(mocker, test_case):
         test_case.assertTrue(data_to_test, msg="Dummy message")
 
     assert (
-        assert_step_report.ALL_STEP_REPORT["TestCase"]["test_list"][
-            "test_assert_decorator_reraise"
-        ]["steps"][-1][-1]["succeed"]
+        assert_step_report.ALL_STEP_REPORT["TestCase"]["test_list"]["test_assert_decorator_reraise"]["steps"][-1][-1][
+            "succeed"
+        ]
         == False
     )
     step_result.assert_called_once_with(
@@ -175,9 +171,7 @@ def test_assert_decorator_no_var_name(mocker, test_case):
 
     test_case.assertTrue(True)
 
-    step_result.assert_called_once_with(
-        "TestCase", "test_assert_decorator_no_var_name", "", "True", "True", True
-    )
+    step_result.assert_called_once_with("TestCase", "test_assert_decorator_no_var_name", "", "True", "True", True)
 
 
 def test_assert_decorator_index_error(mocker, test_case):
@@ -196,9 +190,7 @@ def test_assert_decorator_multi_input(mocker, test_case):
 
     data_to_test = 4.5
     data_expected = 4.5
-    test_case.assertAlmostEqual(
-        data_to_test, data_expected, delta=1, msg="Test the step report"
-    )
+    test_case.assertAlmostEqual(data_to_test, data_expected, delta=1, msg="Test the step report")
 
     step_result.assert_called_once_with(
         "TestCase",
@@ -216,9 +208,7 @@ def test_generate(mocker, test_result):
     assert_step_report.ALL_STEP_REPORT["TestClassName"]["time_result"] = OrderedDict()
     assert_step_report.ALL_STEP_REPORT["TestClassName"]["time_result"]["Start Time"] = 1
     assert_step_report.ALL_STEP_REPORT["TestClassName"]["time_result"]["End Time"] = 2
-    assert_step_report.ALL_STEP_REPORT["TestClassName"]["time_result"][
-        "Elapsed Time"
-    ] = 1
+    assert_step_report.ALL_STEP_REPORT["TestClassName"]["time_result"]["Elapsed Time"] = 1
 
     jinja2.FileSystemLoader = mock_loader = mock.MagicMock()
     jinja2.Environment = mock_environment = mock.MagicMock()
@@ -234,12 +224,10 @@ def test_generate(mocker, test_result):
 def test_add_step():
     assert_step_report.ALL_STEP_REPORT["TestCase"] = OrderedDict()
     assert_step_report.ALL_STEP_REPORT["TestCase"]["test_list"] = OrderedDict()
-    assert_step_report.ALL_STEP_REPORT["TestCase"]["test_list"][
-        "test_assert_step_report_multi_input"
-    ] = {}
-    steplist = assert_step_report.ALL_STEP_REPORT["TestCase"]["test_list"][
-        "test_assert_step_report_multi_input"
-    ]["steps"] = [[]]
+    assert_step_report.ALL_STEP_REPORT["TestCase"]["test_list"]["test_assert_step_report_multi_input"] = {}
+    steplist = assert_step_report.ALL_STEP_REPORT["TestCase"]["test_list"]["test_assert_step_report_multi_input"][
+        "steps"
+    ] = [[]]
 
     assert_step_report._add_step(
         "TestCase",
@@ -333,13 +321,9 @@ def test_add_retry_information(mocker, result_test):
     }
     assert_step_report.ALL_STEP_REPORT = all_step_report_mock
 
-    assert_step_report.add_retry_information(
-        mock_test_case_class, result_test, retry_nb, max_try, ValueError
-    )
+    assert_step_report.add_retry_information(mock_test_case_class, result_test, retry_nb, max_try, ValueError)
 
-    test_info = assert_step_report.ALL_STEP_REPORT[type(mock_test_case_class).__name__][
-        "test_list"
-    ]["test_run"]
+    test_info = assert_step_report.ALL_STEP_REPORT[type(mock_test_case_class).__name__]["test_list"]["test_run"]
     assert test_info["steps"] == [
         [{"succeed": False}, {"succeed": True}],
         [],
@@ -351,10 +335,45 @@ def test_add_retry_information(mocker, result_test):
     assert test_info["max_try"] == max_try
     assert test_info["number_try"] == retry_nb + 1
 
-    assert (
-        assert_step_report.ALL_STEP_REPORT[type(mock_test_case_class).__name__][
-            "succeed"
-        ]
-        == result_test
-    )
+    assert assert_step_report.ALL_STEP_REPORT[type(mock_test_case_class).__name__]["succeed"] == result_test
     format_exec_mock.assert_called_once()
+
+
+def test_assert_decorator_step_report_message_deprecated(mocker, remote_test_case):
+    step_result = mocker.patch("pykiso.test_result.assert_step_report._add_step")
+    remote_test_case.assertEquals = assert_step_report.assert_decorator(remote_test_case.assertEquals)
+
+    var = "Test"
+    expected_var = "Test"
+    remote_test_case.assertEquals(var, expected_var, "not expected str")
+
+    assert step_result.call_count == 1
+    step_result.assert_called_once_with(
+        "RemoteTest",
+        "test_assert_decorator_step_report_message_deprecated",
+        "not expected str",
+        "var",
+        "Equals to Test",
+        "Test",
+    )
+
+
+def test_assert_decorator_step_report_assert_called_in_unittest(mocker, remote_test_case):
+    step_result = mocker.patch("pykiso.test_result.assert_step_report._add_step")
+    remote_test_case.assertEqual = assert_step_report.assert_decorator(remote_test_case.assertEqual)
+    remote_test_case.assertMultiLineEqual = assert_step_report.assert_decorator(remote_test_case.assertMultiLineEqual)
+    remote_test_case.assertIsInstance = assert_step_report.assert_decorator(remote_test_case.assertIsInstance)
+
+    var = "Test"
+    expected_var = "Test"
+    remote_test_case.assertEqual(var, expected_var, "not expected str")
+
+    assert step_result.call_count == 1
+    step_result.assert_called_once_with(
+        "RemoteTest",
+        "test_assert_decorator_step_report_assert_called_in_unittest",
+        "not expected str",
+        "var",
+        "Equal to Test",
+        "Test",
+    )
