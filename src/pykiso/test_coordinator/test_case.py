@@ -25,6 +25,7 @@ from __future__ import annotations
 import functools
 import logging
 import unittest
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 
 import lxml
@@ -127,6 +128,27 @@ class BasicTest(unittest.TestCase):
     @properties.deleter
     def properties(self):
         del self._properties
+
+    # Overwrite the deprecate function to keep the signature for step report
+    @staticmethod
+    def _deprecate(original_func):
+        @functools.wraps(original_func)
+        def deprecated_func(*args, **kwargs):
+            warnings.warn("Please use {0} instead.".format(original_func.__name__), DeprecationWarning, 2)
+            return original_func(*args, **kwargs)
+
+        return deprecated_func
+
+    failUnlessEqual = assertEquals = _deprecate(unittest.TestCase.assertEqual)
+    failIfEqual = assertNotEquals = _deprecate(unittest.TestCase.assertNotEqual)
+    failUnlessAlmostEqual = assertAlmostEquals = _deprecate(unittest.TestCase.assertAlmostEqual)
+    failIfAlmostEqual = assertNotAlmostEquals = _deprecate(unittest.TestCase.assertNotAlmostEqual)
+    failUnless = assert_ = _deprecate(unittest.TestCase.assertTrue)
+    failUnlessRaises = _deprecate(unittest.TestCase.assertRaises)
+    failIf = _deprecate(unittest.TestCase.assertFalse)
+    assertRaisesRegexp = _deprecate(unittest.TestCase.assertRaisesRegex)
+    assertRegexpMatches = _deprecate(unittest.TestCase.assertRegex)
+    assertNotRegexpMatches = _deprecate(unittest.TestCase.assertNotRegex)
 
 
 class RemoteTest(BasicTest):
