@@ -960,43 +960,43 @@ def test_shutdown(mocker, mock_can_bus, mock_PCANBasic):
     mock_merge.assert_called_once()
 
 
-def test_stop_pcan_trace(mocker):
+def test_stop_can_trace(mocker):
     cc_pcan = CCPCanCan()
     mock_pcan_set_value = mocker.patch.object(CCPCanCan, "_pcan_set_value")
     cc_pcan.trace_running = True
 
-    cc_pcan.stop_pcan_trace()
+    cc_pcan.stop_can_trace()
 
     mock_pcan_set_value.assert_called_once()
     assert cc_pcan.trace_running is False
 
 
-def test_start_pcan_trace(mocker):
+def test_start_can_trace(mocker):
     cc_pcan = CCPCanCan()
     cc_pcan.raw_pcan_interface = "not None"
     mock_init_trace = mocker.patch.object(CCPCanCan, "_initialize_trace")
     mock_config_trace = mocker.patch.object(CCPCanCan, "_pcan_configure_trace")
     mock_opened = mocker.patch.object(CCPCanCan, "_cc_open")
 
-    cc_pcan.start_pcan_trace()
+    cc_pcan.start_can_trace()
 
     mock_init_trace.assert_called_once()
     mock_config_trace.assert_called_once()
     mock_opened.assert_not_called()
 
 
-def test_stop_pcan_trace_already_stopped(caplog):
+def test_stop_can_trace_already_stopped(caplog):
     cc_pcan = CCPCanCan()
     with caplog.at_level(logging.WARNING):
-        cc_pcan.stop_pcan_trace()
+        cc_pcan.stop_can_trace()
     assert "Trace is already stopped" in caplog.text
 
 
-def test_start_pcan_trace_already_started(caplog):
+def test_start_can_trace_already_started(caplog):
     cc_pcan = CCPCanCan()
     cc_pcan.trace_running = True
     with caplog.at_level(logging.WARNING):
-        cc_pcan.start_pcan_trace()
+        cc_pcan.start_can_trace()
     assert "Trace is already started" in caplog.text
 
 

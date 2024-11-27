@@ -338,7 +338,7 @@ class CCPCanCan(CChannel):
         if not self.opened:
             log.warning("Pcan is already closed")
             return
-        self.stop_pcan_trace()
+        self.stop_can_trace()
         self.bus.shutdown()
         self.bus = None
         if self.logging_activated:
@@ -548,7 +548,7 @@ class CCPCanCan(CChannel):
         else:
             self._rename_trc()
 
-    def stop_pcan_trace(self):
+    def stop_can_trace(self):
         """
         Stops the PCAN trace if it is currently running.
         :return: None
@@ -567,7 +567,7 @@ class CCPCanCan(CChannel):
         )
         self.trace_running = False
 
-    def start_pcan_trace(self, trace_path: Optional[str] = None, trace_size: int = None) -> None:
+    def start_can_trace(self, trace_path: Optional[str] = None, trace_size: int = None) -> None:
         """Start the PCAN trace, the trace file will be renamed after the pcan trace will be stopped.
 
         :param trace_path: Trace path where the trace should be written if None is given it will use
