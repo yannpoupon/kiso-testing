@@ -106,6 +106,8 @@ class SocketCan2Trc(can.Listener):
 
     def start(self):
         """start logging"""
+        if self.started:
+            return
         self.open_trc_file()
 
         self.starttime = self.get_start_time()
