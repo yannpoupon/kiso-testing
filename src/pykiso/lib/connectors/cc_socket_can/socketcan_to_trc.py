@@ -94,14 +94,20 @@ class SocketCan2Trc(can.Listener):
         """cleanup logger"""
         if not self.started:
             return
+        # Remove the listener else the Can Notifier stop function will call this stop function
+        # which then call again the Can Notifier again etc, and python is in an infinite loop
+        self.can_notifier.remove_listener(self)
         self.can_notifier.stop()
         self.can_notifier = None
         if self.trc_file != sys.stdout:
             self.trc_file.close()
         self.bus = None
+        self.started = False
 
     def start(self):
         """start logging"""
+        if self.started:
+            return
         self.open_trc_file()
 
         self.starttime = self.get_start_time()
