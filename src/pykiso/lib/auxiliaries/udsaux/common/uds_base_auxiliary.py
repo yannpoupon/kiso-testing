@@ -98,8 +98,8 @@ class UdsBaseAuxiliary(AuxiliaryInterface):
         :param tp_layer: isotp configuration given at yaml level
         :param uds_layer: uds configuration given at yaml level
         """
-        tp_layer = tp_layer or UdsBaseAuxiliary.DEFAULT_TP_CONFIG
-        uds_layer = uds_layer or UdsBaseAuxiliary.DEFAULT_UDS_CONFIG
+        tp_layer = tp_layer or UdsBaseAuxiliary.DEFAULT_TP_CONFIG.copy()
+        uds_layer = uds_layer or UdsBaseAuxiliary.DEFAULT_UDS_CONFIG.copy()
         # add configured request id and response id to tp layer config
         tp_layer["req_id"] = self.req_id
         tp_layer["res_id"] = self.res_id
