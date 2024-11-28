@@ -102,7 +102,7 @@ class TRCReaderCanFD(TRCReader):
     Unlike the base TRCReader class, also retrieve message type
     """
 
-    def _nomalize_cols(self, cols: Tuple[str] | List[str]) -> dict:
+    def _nomalize_cols(self, cols: Tuple[str] | List[str]) -> Tuple[str] | List[str]:
         """Insert missing columns for specific messages (Hardware Status, Error Frames
         and Error Counter Changes) to avoid
 
