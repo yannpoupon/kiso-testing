@@ -20,7 +20,7 @@ TRC file handler based on Python CAN
 """
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 try:
     from can import Message
@@ -102,7 +102,7 @@ class TRCReaderCanFD(TRCReader):
     Unlike the base TRCReader class, also retrieve message type
     """
 
-    def _nomalize_cols(self, cols: dict) -> dict:
+    def _nomalize_cols(self, cols: Tuple[str] | List[str]) -> Tuple[str] | List[str]:
         """Insert missing columns for specific messages (Hardware Status, Error Frames
         and Error Counter Changes) to avoid
 
@@ -110,6 +110,8 @@ class TRCReaderCanFD(TRCReader):
 
         :return: normalized message
         """
+        tuple_used = isinstance(cols, tuple)
+        cols = list(cols) if tuple_used else cols
         type_ = cols[self.columns["T"]]
         if type_ in NO_ARBITRATION_ID_TYPES:
             if self.file_version == TRCFileVersion.V2_0:
@@ -120,9 +122,9 @@ class TRCReaderCanFD(TRCReader):
                 cols.insert(self.columns["l"], " ")
             if "L" in self.columns:
                 cols.insert(self.columns["L"], " ")
-        return cols
+        return tuple(cols) if tuple_used else cols
 
-    def _parse_cols_v2_x(self, cols: List[str]) -> Optional[TypedMessage]:
+    def _parse_cols_v2_x(self, cols: List[str] | Tuple[str, ...]) -> Optional[TypedMessage]:
         """Parse columns for file version 2.0 and 2.1.
 
         :param cols: list of columns to parse
@@ -138,7 +140,7 @@ class TRCReaderCanFD(TRCReader):
             log.info("TRCReader: Unsupported type '%s'", dtype)
             return None
 
-    def _parse_msg_v2_x(self, cols: List[str]) -> Optional[Message]:
+    def _parse_msg_v2_x(self, cols: List[str] | Tuple[str]) -> Optional[Message]:
         """Parse messages for file version 2.0 and 2.1.
 
         :param cols: list of columns to parse
