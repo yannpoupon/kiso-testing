@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import functools
 import os
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 from unittest import util
 from unittest.loader import VALID_MODULE_NAME
 
@@ -48,7 +48,6 @@ from collections import OrderedDict, namedtuple
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import xmlrunner
 
@@ -553,7 +552,7 @@ def handle_can_trace_strategy(
     return test_suites
 
 
-def _get_connector_instance_with_trace_file_strategy(config: dict[str, Any]) -> CCPCanCan | CCSocketCan | None:
+def _get_connector_instance_with_trace_file_strategy(config: dict[str, Any]) -> Optional[Union[CCPCanCan, CCSocketCan]]:
     """Get pcan and socket can channels from auxiliaries created from the Yaml
 
     :param config: dict from converted YAML config file
@@ -597,7 +596,7 @@ def _check_trace_file_strategy(config: dict[str, Any]) -> bool:
     return strategy_trc_file is not None
 
 
-def start_can_trace_decorator(func: Callable, channel: CCPCanCan | CCSocketCan, trace_file_name: str):
+def start_can_trace_decorator(func: Callable, channel: Union[CCPCanCan, CCSocketCan], trace_file_name: str):
     """Decorator that will call start pcan trace before calling the function
 
     :param func: function to execute
@@ -624,7 +623,7 @@ def start_can_trace_decorator(func: Callable, channel: CCPCanCan | CCSocketCan, 
     return decorator
 
 
-def stop_can_trace_decorator(func: Callable, channel: CCPCanCan | CCSocketCan):
+def stop_can_trace_decorator(func: Callable, channel: Union[CCPCanCan, CCSocketCan]):
     """Decorator that will call stop pcan trace after calling the function
 
     :param func: function to execute
