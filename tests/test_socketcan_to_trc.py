@@ -58,17 +58,11 @@ def test_constructor(mock_can_bus, mocker, logging_requested):
     CAN_NAME = "vcan0"
     LOG_FILE = logging_requested
 
-    mock_thread = mocker.patch("can.ThreadSafeBus")
-    mock_notifier = mocker.patch("can.Notifier")
-
     logger = SocketCan2Trc(CAN_NAME, LOG_FILE)
     assert logger.can_name == CAN_NAME
     assert logger.trc_file_name == LOG_FILE
 
     assert logger.trc_file == sys.stdout
-
-    mock_thread.assert_called_once_with(CAN_NAME, bustype="socketcan", fd=True)
-    mock_notifier.assert_called_once()
 
 
 @pytest.fixture
@@ -98,16 +92,12 @@ def test_open_trc_file(mock_can_bus, mocker, tmp_file):
 
 def test_get_ip_link_show(mocker):
 
-    mock_run = mocker.patch(
-        "pykiso.lib.connectors.cc_socket_can.socketcan_to_trc.subprocess.run"
-    )
+    mock_run = mocker.patch("pykiso.lib.connectors.cc_socket_can.socketcan_to_trc.subprocess.run")
     mock_thread = mocker.patch("can.ThreadSafeBus")
     mock_notifier = mocker.patch("can.Notifier")
 
     mock_stdout = mocker.MagicMock()
-    mock_stdout.configure_mock(
-        **{"stdout.decode.return_value": "A\n    B\n    C", "returncode": 0}
-    )
+    mock_stdout.configure_mock(**{"stdout.decode.return_value": "A\n    B\n    C", "returncode": 0})
 
     mock_run.return_value = mock_stdout
 
@@ -119,16 +109,12 @@ def test_get_ip_link_show(mocker):
 
 def test_get_ip_link_show_exception(mocker):
 
-    mock_run = mocker.patch(
-        "pykiso.lib.connectors.cc_socket_can.socketcan_to_trc.subprocess.run"
-    )
+    mock_run = mocker.patch("pykiso.lib.connectors.cc_socket_can.socketcan_to_trc.subprocess.run")
     mock_thread = mocker.patch("can.ThreadSafeBus")
     mock_notifier = mocker.patch("can.Notifier")
 
     mock_stdout = mocker.MagicMock()
-    mock_stdout.configure_mock(
-        **{"stdout.decode.return_value": "A\n    B\n    C", "returncode": 1}
-    )
+    mock_stdout.configure_mock(**{"stdout.decode.return_value": "A\n    B\n    C", "returncode": 1})
 
     mock_run.return_value = mock_stdout
 
@@ -140,15 +126,13 @@ def test_get_ip_link_show_exception(mocker):
 
 
 def test_start(mocker, tmp_file):
-    mock_run = mocker.patch(
-        "pykiso.lib.connectors.cc_socket_can.socketcan_to_trc.subprocess.run"
-    )
+    CAN_NAME = "vcan0"
+
+    mock_run = mocker.patch("pykiso.lib.connectors.cc_socket_can.socketcan_to_trc.subprocess.run")
     mock_thread = mocker.patch("can.ThreadSafeBus")
     mock_notifier = mocker.patch("can.Notifier")
 
-    mock_get_ip_link_show = mocker.patch.object(
-        SocketCan2Trc, "get_ip_link_show", return_value="something"
-    )
+    mock_get_ip_link_show = mocker.patch.object(SocketCan2Trc, "get_ip_link_show", return_value="something")
 
     logger = SocketCan2Trc("vcan0", str(tmp_file))
 
@@ -161,23 +145,19 @@ def test_start(mocker, tmp_file):
         assert "vcan0" in txt
 
     assert logger.started == True
+    mock_thread.assert_called_once_with(CAN_NAME, bustype="socketcan", fd=True)
+    mock_notifier.assert_called_once()
 
 
 def test_on_message_received(caplog, mocker, tmp_file):
 
-    mock_run = mocker.patch(
-        "pykiso.lib.connectors.cc_socket_can.socketcan_to_trc.subprocess.run"
-    )
+    mock_run = mocker.patch("pykiso.lib.connectors.cc_socket_can.socketcan_to_trc.subprocess.run")
     mock_thread = mocker.patch("can.ThreadSafeBus")
     mock_notifier = mocker.patch("can.Notifier")
 
-    mock_get_ip_link_show = mocker.patch.object(
-        SocketCan2Trc, "get_ip_link_show", return_value="something"
-    )
+    mock_get_ip_link_show = mocker.patch.object(SocketCan2Trc, "get_ip_link_show", return_value="something")
 
-    mock_get_ip_link_show = mocker.patch.object(
-        SocketCan2Trc, "get_start_time", return_value=10
-    )
+    mock_get_ip_link_show = mocker.patch.object(SocketCan2Trc, "get_start_time", return_value=10)
 
     logger = SocketCan2Trc("vcan0", str(tmp_file))
     logger.start()
