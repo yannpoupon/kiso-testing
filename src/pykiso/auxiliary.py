@@ -139,12 +139,12 @@ class AuxiliaryInterface(abc.ABC):
             if not self.is_instance:
                 raise AuxiliaryNotStarted(self.name)
 
-            log.internal_debug(f"sending command '{cmd_message}' with payload {cmd_data} using {self.name} aux.")
+            log.info(f"sending command '{cmd_message}' with payload {cmd_data} using {self.name} aux.")
             response_received = timeout_result
             self.queue_in.put((cmd_message, cmd_data))
             try:
                 response_received = self.queue_out.get(blocking, timeout_in_s)
-                log.internal_debug(f"reply to command '{cmd_message}' received: '{response_received}' in {self.name}")
+                log.info(f"reply to command '{cmd_message}' received: '{response_received}' in {self.name}")
             except queue.Empty:
                 log.error(
                     f"no reply received within time for command {cmd_message} for payload {cmd_data} using {self.name} aux."
@@ -209,11 +209,11 @@ class AuxiliaryInterface(abc.ABC):
     def _start_tx_task(self) -> None:
         """Start transmission task."""
         if self.tx_task_on is False:
-            log.internal_debug("transmit task is not needed, don't start it")
+            log.info("transmit task is not needed, don't start it")
             return
 
         task_name = f"{self.name}_tx"
-        log.internal_debug("start transmit task %s", task_name)
+        log.info("start transmit task %s", task_name)
         # Any created thread should disappear after main-thread exit
         self.tx_thread = threading.Thread(name=task_name, target=self._transmit_task, daemon=True)
         self.tx_thread.start()
@@ -221,11 +221,11 @@ class AuxiliaryInterface(abc.ABC):
     def _start_rx_task(self) -> None:
         """Start reception task."""
         if self.rx_task_on is False:
-            log.internal_debug("reception task is not needed, don't start it")
+            log.info("reception task is not needed, don't start it")
             return
         with self.rx_lock:
             task_name = f"{self.name}_rx"
-            log.internal_debug("start reception task %s", task_name)
+            log.info("start reception task %s", task_name)
             # Any created thread should disappear after main-thread exit
             self.rx_thread = threading.Thread(name=task_name, target=self._reception_task, daemon=True)
             self.rx_thread.start()
@@ -233,25 +233,30 @@ class AuxiliaryInterface(abc.ABC):
     def _stop_tx_task(self) -> None:
         """Stop transmission task."""
         if self.tx_task_on is False:
-            log.internal_debug("transmit task was not started, no need to stop it")
+            log.info("transmit task was not started, no need to stop it for %s", self.name)
             return
 
-        log.internal_debug(f"stop transmit task {self.name}_tx")
+        log.info(f"stop transmit task {self.name}_tx")
         self.queue_in.put((AuxCommand.DELETE_AUXILIARY, None))
         self.stop_tx.set()
+        log.info(f"Before join to stop task {self.name}_tx")
         self.tx_thread.join()
+        log.info(f"After join to stop transmit task {self.name}_tx")
+
         self.stop_tx.clear()
 
     def _stop_rx_task(self) -> None:
         """Stop reception task."""
         if self.rx_task_on is False:
-            log.internal_debug("reception task was not started, no need to stop it")
+            log.info("reception task was not started, no need to stop it")
             return
+        log.info("Before lock in _stop_rx_task for %s", self.name)
         with self.rx_lock:
-            log.internal_debug(f"stop reception task {self.name}_rx")
+            log.info(f"stop reception task {self.name}_rx after lock")
             self.stop_rx.set()
             self.rx_thread.join()
             self.stop_rx.clear()
+            log.info(f"After join reception task {self.name}_rx after lock")
 
     def start(self) -> bool:
         """Force the auxiliary to start all running tasks and
@@ -311,10 +316,10 @@ class AuxiliaryInterface(abc.ABC):
         """
         while not self.stop_tx.is_set():
             cmd, data = self.queue_in.get()
+            log.info("Command received %s with data %s ", cmd, data)
             # just stop the current Tx thread task
             if cmd == AuxCommand.DELETE_AUXILIARY:
                 break
-
             self._run_command(cmd, data)
 
     def _reception_task(self) -> None:
@@ -324,6 +329,7 @@ class AuxiliaryInterface(abc.ABC):
         """
         while not self.stop_rx.is_set():
             self._receive_message(timeout_in_s=self.recv_timeout)
+        log.info("Reception task %s stopped", self.name)
 
     def wait_for_queue_out(self, blocking: bool = False, timeout_in_s: int = 0) -> Optional[Any]:
         """Wait for data from the queue out.
@@ -461,7 +467,7 @@ def flash_target(func: Callable) -> Callable:
         :return: True if everything was successful otherwise False
         """
         if self.flash is None and not self.is_instance:
-            log.internal_debug("No flasher configured!")
+            log.info("No flasher configured!")
             return func(self, *arg, **kwargs)
 
         try:
