@@ -159,9 +159,7 @@ class AuxiliaryInterface(abc.ABC):
         :raises AuxiliaryCreationError: if instance creation failed
         """
         log.internal_info(f"Creating instance of auxiliary {self.name}")
-        # Reset queue so no old commands are processed when restarting the auxiliary
-        self.queue_in = queue.Queue()
-        self.queue_out = queue.Queue()
+
         with self.lock:
             # if the current aux is alive don't try to create it again
             if self.is_instance:
@@ -206,6 +204,9 @@ class AuxiliaryInterface(abc.ABC):
 
             self.is_instance = False
             self._stop_event.clear()
+            # Reset queue so no old commands are processed when restarting the auxiliary
+            self.queue_in = queue.Queue()
+            self.queue_out = queue.Queue()
             return is_deleted
 
     def _start_tx_task(self) -> None:
