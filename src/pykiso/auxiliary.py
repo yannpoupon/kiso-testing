@@ -204,6 +204,9 @@ class AuxiliaryInterface(abc.ABC):
 
             self.is_instance = False
             self._stop_event.clear()
+            # Reset queue so no old commands are processed when restarting the auxiliary
+            self.queue_in = queue.Queue()
+            self.queue_out = queue.Queue()
             return is_deleted
 
     def _start_tx_task(self) -> None:
