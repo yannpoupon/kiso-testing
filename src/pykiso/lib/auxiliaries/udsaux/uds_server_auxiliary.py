@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import Callable, Dict, List, Optional, Union
 
 from uds import IsoServices
@@ -134,6 +135,16 @@ class UdsServerAuxiliary(UdsBaseAuxiliary):
         :param timeout: Time to wait in second for a message to be received
         :return: the received message or None.
         """
+        start_time = time.time()
+        if timeout == 0:
+            return self._receive_one_msg(timeout=timeout)
+
+        while timeout > time.time() - start_time:
+            msg = self._receive_one_msg(timeout=timeout - (time.time() - start_time))
+            if msg is not None:
+                return msg
+
+    def _receive_one_msg(self, timeout: float) -> Optional[bytes]:
         rcv_data = self.channel._cc_receive(timeout=timeout)
         msg, arbitration_id = rcv_data.get("msg"), rcv_data.get("remote_id")
         if msg is not None and arbitration_id == self.res_id:
