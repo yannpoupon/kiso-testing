@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import Callable, Dict, List, Optional, Union
 
 from uds import IsoServices
@@ -134,10 +135,19 @@ class UdsServerAuxiliary(UdsBaseAuxiliary):
         :param timeout: Time to wait in second for a message to be received
         :return: the received message or None.
         """
-        rcv_data = self.channel._cc_receive(timeout=timeout)
-        msg, arbitration_id = rcv_data.get("msg"), rcv_data.get("remote_id")
-        if msg is not None and arbitration_id == self.res_id:
-            return msg
+        start_time = time.time()
+        time_left = timeout
+
+        while True:
+            rcv_data = self.channel._cc_receive(timeout=timeout)
+            msg, arbitration_id = rcv_data.get("msg"), rcv_data.get("remote_id")
+            if msg is not None and arbitration_id == self.res_id:
+                return msg
+
+            time_left = timeout - (time.time() - start_time)
+
+            if time_left < 0:
+                return None
 
     def send_response(self, response_data: List[int]) -> None:
         """Encode and transmit a UDS response.

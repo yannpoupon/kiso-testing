@@ -122,6 +122,36 @@ class TestUdsServerAuxiliary:
         uds_server_aux_inst.channel._cc_receive.assert_called_with(timeout=0)
         assert received_data == expected_received_data
 
+    def test_receive_with_timeout(self, mocker, uds_server_aux_inst):
+        mock_channel = mocker.patch.object(
+            uds_server_aux_inst.channel,
+            "_cc_receive",
+            side_effect=[{"msg": None, "remote_id": 0xAC}, {"msg": b"DATA", "remote_id": 0xAC}],
+        )
+        uds_server_aux_inst.res_id = 0xAC
+
+        received_data = uds_server_aux_inst.receive(0.1)
+
+        uds_server_aux_inst.channel._cc_receive.assert_called_with(timeout=0.1)
+        assert received_data == b"DATA"
+
+    def test_receive_with_timeout_reached(self, mocker, uds_server_aux_inst):
+        mock_channel = mocker.patch.object(
+            uds_server_aux_inst.channel,
+            "_cc_receive",
+            side_effect=[{"msg": None, "remote_id": 0xAD}, {"msg": b"DATA", "remote_id": 0xAD}],
+        )
+        uds_server_aux_inst.res_id = 0xAC
+        timeout = 0.2
+        mock_time = mocker.patch(
+            "pykiso.lib.auxiliaries.udsaux.uds_server_auxiliary.time.time", side_effect=[1, 1.1, 1.4]
+        )
+
+        received_data = uds_server_aux_inst.receive(timeout)
+
+        uds_server_aux_inst.channel._cc_receive.assert_called_with(timeout=timeout)
+        assert received_data == None
+
     def test_send_response(self, mocker, uds_server_aux_inst):
         uds_mock = mocker.patch.object(uds_server_aux_inst, "uds_config")
         uds_mock.tp.encode_isotp.return_value = "NOT NONE"
@@ -173,8 +203,8 @@ class TestUdsServerAuxiliary:
                 id="ensure trailing zero in dict key",
             ),
             pytest.param(
-                ([0x10, 0x11, 0x12], None, [b"\xAC\xDC"], 4),
-                {"0x101112": UdsCallback([0x10, 0x11, 0x12], None, [b"\xAC\xDC"], 4)},
+                ([0x10, 0x11, 0x12], None, [b"\xac\xdc"], 4),
+                {"0x101112": UdsCallback([0x10, 0x11, 0x12], None, [b"\xac\xdc"], 4)},
                 id="request and response data passed",
             ),
             pytest.param(
