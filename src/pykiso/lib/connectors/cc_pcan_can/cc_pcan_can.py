@@ -92,6 +92,7 @@ class CCPCanCan(CChannel):
         can_filters: list = None,
         logging_activated: bool = True,
         bus_error_warning_filter: bool = False,
+        bus_off_autoreset: bool = False,
         merge_trc_logs: bool = True,
         strategy_trc_file: Optional[Literal["testRun", "testCase"]] = None,
         **kwargs,
@@ -174,6 +175,7 @@ class CCPCanCan(CChannel):
         self._trc_file_names: dict[Path, str | None] = {}
         self.trace_running = False
         self.opened = False
+        self.bus_off_autoreset = bus_off_autoreset
         if bus_error_warning_filter:
             logging.getLogger("can.pcan").addFilter(PcanFilter())
 
@@ -232,6 +234,14 @@ class CCPCanCan(CChannel):
             self.raw_pcan_interface = PCANBasic.PCANBasic()
             if self.strategy_trc_file is None:
                 self._pcan_configure_trace()
+
+        pcan_channel = getattr(PCANBasic, self.channel)
+
+        self._pcan_set_value(
+            pcan_channel,
+            PCANBasic.PCAN_BUSOFF_AUTORESET,
+            PCANBasic.PCAN_PARAMETER_ON if self.bus_off_autoreset else PCANBasic.PCAN_PARAMETER_OFF,
+        )
         self.opened = True
 
     def _pcan_configure_trace(self) -> None:
