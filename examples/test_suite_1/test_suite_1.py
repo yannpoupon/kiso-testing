@@ -18,7 +18,9 @@ using TestApp.
 
 import importlib
 import logging
+import time
 from itertools import cycle
+from sqlite3 import Time
 
 import pykiso
 from pykiso.auxiliaries import aux1, aux2, aux3
@@ -87,7 +89,11 @@ class MyTest1(pykiso.BasicTest):
         retry_test_case's decorator. The syntax super() access to the BasicTest and
         we will run the default setUp()
         """
+        print(self._testMethodDoc)
         super().setUp()
+        logging.info(
+            f"--------------- ################### SETUP: {self.test_suite_id}, {self.test_case_id} ---------------"
+        )
 
     @pykiso.retry_test_case(max_try=5, rerun_setup=True, rerun_teardown=True)
     def test_run(self):
@@ -101,9 +107,27 @@ class MyTest1(pykiso.BasicTest):
         logging.info(f"--------------- RUN: {self.test_suite_id}, {self.test_case_id} ---------------")
         # define any additional key-value pair that will appear as property in the JUnit report
         self.properties = {"testrail_attachment": "some/path/to/afile.txt"}
-
+        print(self._testMethodDoc)
         self.assertTrue(next(side_effect))
         logging.info(f"I HAVE RUN 0.1.1 for tag {self.tag}!")
+
+    def test_run2(self):
+        """This test_run2 method is just an example of how to define
+        additional test_run methods in the same test case.
+        """
+        logging.info("TAG nightly")
+        logging.info(f"--------------- RUN2: {self.test_suite_id}, {self.test_case_id} ---------------")
+        logging.info(f"I HAVE RUN 0.1.1 for tag {self.tag}!")
+        assert False
+
+    def test_run3(self):
+        """This test_run2 method is just an example of how to define
+        additional test_run methods in the same test case.
+        """
+        logging.info("TAG nightly")
+        logging.info(f"--------------- RUN2: {self.test_suite_id}, {self.test_case_id} ---------------")
+        logging.info(f"I HAVE RUN 0.1.1 for tag {self.tag}!")
+        raise TimeoutError
 
     @pykiso.retry_test_case(max_try=3)
     def tearDown(self):

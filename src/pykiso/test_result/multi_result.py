@@ -20,17 +20,23 @@ Multi test result
 """
 from __future__ import annotations
 
+import unittest
+from datetime import datetime
 from inspect import signature
-from typing import Any, List, Optional, TextIO, Union
-from unittest import TestResult
+from pathlib import Path
+from typing import Any, List, Literal, Optional, Union
+from unittest import TestResult, util
 from unittest.case import _SubTest
 
 from pykiso.types import ExcInfoType
 
+from ..logging_initializer import get_logging_options, initialize_logging
 from ..test_coordinator.test_case import BasicTest
 from ..test_coordinator.test_suite import BaseTestSuite
 from .text_result import BannerTestResult
 from .xml_result import XmlTestResult
+
+testRunner: Optional[unittest.TextTestRunner] = None
 
 
 class MultiTestResult:
@@ -38,12 +44,23 @@ class MultiTestResult:
     test for all the classes.
     """
 
-    def __init__(self, *result_classes: TestResult):
+    def __init__(
+        self,
+        *result_classes: TestResult,
+        log_file_strategy: Literal["testRun,testCase"] | None = None,
+        yaml_filename: str | None = None,
+    ):
         """Initialize parameter
 
         :param result_classes: test result classes
+        :param log_file_strategy: strategy to use for the log file
+            - testRun: log file will be created for each test run
+            - testCase: log file will be created for each test case
+        :param yaml_filename: path to the yaml file for the test result
         """
         self.result_classes = result_classes
+        self.log_file_strategy = log_file_strategy
+        self.yaml_filename = yaml_filename
 
     def __call__(self, *args, **kwargs) -> MultiTestResult:
         """Initialize the result classes with the parameters passed in arguments."""
@@ -99,8 +116,34 @@ class MultiTestResult:
 
         :param test: running testcase
         """
+        self.handle_log_file_strategy(test)
+
         for result in self.result_classes:
             result.startTest(test)
+
+    def handle_log_file_strategy(self, test: Union[BasicTest, BaseTestSuite]) -> None:
+        """Handle the log file strategy for the given test.
+
+        :param test: The test case or test suite being executed.
+        """
+        if self.log_file_strategy is not None:
+            log_file_name = util.strclass(test.__class__).replace(".", "_").replace("-", "_")
+            if self.log_file_strategy == "testRun":
+                log_file_name += "_" + test._testMethodName
+
+            log_file_name = Path(log_file_name).stem + f"_{datetime.today().strftime('%Y%d%m%H%M%S')}.log"
+            log_options = get_logging_options()
+            # Reinitialize logging for the test with the new log file path
+            initialize_logging(
+                log_options.log_path.parent / log_file_name,
+                log_options.log_level,
+                log_options.verbose,
+                log_options.report_type,
+            )
+            # Update the testRunner stream to write to the new log file to have the banner in the log file
+            testRunner.stream.stream.file = open(
+                log_options.log_path.parent / log_file_name, mode="a", encoding="utf-8"
+            )
 
     def startTestRun(self) -> None:
         """Call the startTestRun function for all result classes."""
@@ -109,6 +152,15 @@ class MultiTestResult:
 
     def stopTestRun(self) -> None:
         """Call the stopTestRun function for all result classes."""
+        if self.log_file_strategy is not None:
+            log_options = get_logging_options()
+            testRunner.stream.stream.file = open(
+                log_options.log_path.parent
+                / f"test_result_{self.yaml_filename}_{datetime.today().strftime('%Y%d%m%H%M%S')}.log",
+                mode="a",
+                encoding="utf-8",
+            )
+
         for result in self.result_classes:
             result.stopTestRun()
 
@@ -124,6 +176,8 @@ class MultiTestResult:
         """
         for result in self.result_classes:
             result.stopTest(test)
+
+        testRunner.stream.stream.file.close()
 
     def addSuccess(self, test: Union[BasicTest, BaseTestSuite]) -> None:
         """Call the addSuccess function for all result classes.

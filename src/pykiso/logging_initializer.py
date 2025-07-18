@@ -38,6 +38,8 @@ LEVELS = {
     "ERROR": logging.ERROR,
 }
 
+original_sys = sys.stderr
+
 
 class LogOptions(NamedTuple):
     """
@@ -132,7 +134,7 @@ def initialize_logging(
     log_options = LogOptions(log_path, log_level, report_type, verbose)
 
     # for junit use sys.stdout as stream, otherwise print to stderr
-    stream = sys.stdout if report_type == "junit" else sys.stderr
+    stream = sys.stdout if report_type == "junit" else original_sys
 
     # for all report types add a StreamHandler
     stream_handler = logging.StreamHandler(stream)

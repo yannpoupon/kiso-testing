@@ -27,11 +27,11 @@ from __future__ import annotations
 
 import functools
 import os
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
 from unittest import util
 from unittest.loader import VALID_MODULE_NAME
 
-from pykiso.test_result.multi_result import MultiTestResult
+import pykiso.test_result.multi_result as multi_result
 
 if TYPE_CHECKING:
     from ..lib.connectors.cc_pcan_can import CCPCanCan
@@ -54,7 +54,7 @@ import xmlrunner
 import pykiso
 
 from ..exceptions import AuxiliaryCreationError, TestCollectionError
-from ..logging_initializer import get_logging_options
+from ..logging_initializer import get_logging_options, initialize_logging
 from ..test_result.assert_step_report import StepReportData, assert_decorator, generate_step_report
 from ..test_result.text_result import BannerTestResult, ResultStream
 from ..test_result.xml_result import XmlTestResult
@@ -415,6 +415,7 @@ def execute(
     pattern_inject: Optional[str] = None,
     failfast: bool = False,
     junit_path: str = "reports",
+    log_file_strategy: Literal["testRun", "testCase"] | None = None,
 ) -> int:
     """Create test environment based on test configuration.
 
@@ -429,6 +430,7 @@ def execute(
         run specific tests.
     :param failfast: stop the test run on the first error or failure.
     :param junit_path: path (file or dir) to junit report
+    :param log_file_strategy: strategy for the log file creation
 
     :return: exit code corresponding to the result of the test execution
         (tests failed, unexpected exception, ...)
@@ -438,7 +440,6 @@ def execute(
 
         test_suites = collect_test_suites(config["test_suite_list"], test_file_pattern.test_file)
         test_suites = handle_can_trace_strategy(config, test_suites)
-        test_suites = handle_log_file_strategy(config, test_suites)
         # Group all the collected test suites in one global test suite
         all_tests_to_run = unittest.TestSuite(test_suites)
 
@@ -457,6 +458,7 @@ def execute(
             )
 
         log_file_path = get_logging_options().log_path
+        current_time = datetime.today()
         # TestRunner selection: generate or not a junit report. Start the tests and publish the results
         if report_type == "junit":
             report_path = junit_path
@@ -465,27 +467,37 @@ def execute(
                 junit_report_path = str(full_report_path)
                 full_report_path.parent.mkdir(exist_ok=True)
             else:
-                junit_report_path = str(full_report_path / Path(time.strftime(f"%Y-%m-%d_%H-%M-%S-{report_name}.xml")))
+                junit_report_path = str(
+                    full_report_path / Path(current_time.strftime(f"%Y-%m-%d_%H-%M-%S-{report_name}.xml"))
+                )
                 full_report_path.mkdir(exist_ok=True)
             with open(junit_report_path, "wb") as junit_output, ResultStream(log_file_path) as stream:
-                test_runner = xmlrunner.XMLTestRunner(
+                multi_result.testRunner = xmlrunner.XMLTestRunner(
                     output=junit_output,
-                    resultclass=MultiTestResult(XmlTestResult, BannerTestResult),
+                    resultclass=multi_result.MultiTestResult(
+                        XmlTestResult, BannerTestResult, log_file_strategy=log_file_strategy, yaml_filename=report_name
+                    ),
                     failfast=failfast,
                     verbosity=0,
                     stream=stream,
                 )
-                result = test_runner.run(all_tests_to_run)
+                result = multi_result.testRunner.run(all_tests_to_run)
         else:
             with ResultStream(log_file_path) as stream:
-                test_runner = unittest.TextTestRunner(
+                multi_result.testRunner = unittest.TextTestRunner(
                     stream=stream,
-                    resultclass=MultiTestResult(BannerTestResult),
+                    resultclass=multi_result.MultiTestResult(
+                        BannerTestResult, log_file_strategy=log_file_strategy, yaml_filename=report_name
+                    ),
                     failfast=failfast,
                     verbosity=0,
                 )
-                result = test_runner.run(all_tests_to_run)
-
+                result = multi_result.testRunner.run(all_tests_to_run)
+        # Rename the first log file created if the log file strategy is used
+        if log_file_strategy is not None:
+            log_file_path.rename(
+                log_file_path.parent / f"kiso_setup_{report_name}_{current_time.strftime(f'%Y%m%d%H%M%S')}.log"
+            )
         # Generate the html step report
         if step_report is not None:
             generate_step_report(result, step_report)
@@ -507,81 +519,6 @@ def execute(
         log.exception(f'Issue detected in the test-suite: {config["test_suite_list"]}!')
         exit_code = ExitCode.ONE_OR_MORE_TESTS_RAISED_UNEXPECTED_EXCEPTION
     return int(exit_code)
-
-
-def handle_log_file_strategy(config: dict[str, Any], test_suites: list[unittest.TestSuite]) -> list[unittest.TestSuite]:
-    """Setup the test to get a log file for every test or testCase if the user requested it
-        else just return the test suite passed in input
-
-    :param config: dict from converted YAML config file
-    :return: a list of all loaded test suites.
-
-    :return: a list of all loaded test suites with setUp and tearDown modified if needed.
-    """
-    if not config.get("log_file_strategy", False):
-        return test_suites
-
-    # Decorate function to call the start and stop pcan trace function
-    for suite in test_suites:
-        for test in suite._tests:
-            # If the user want to have one log file for a testCase we decorate the setUpClass and tearDownClass
-            if config["log_file_strategy"] == "testCase":
-                log_file_name = util.strclass(test.__class__).replace(".", "_").replace("-", "_")
-                test_class = test.__class__
-                test_class.setUpClass = start_log_file_decorator(test_class.setUpClass, log_file_name)
-                test_class.tearDownClass = stop_log_file_decorator(test_class.tearDownClass, log_file_name)
-
-
-_log_file_handler = []
-
-
-def start_log_file_decorator(func: Callable, log_file_name: str):
-    """Decorator that will call start logging before calling the function
-
-    :param func: function to execute
-    :param log_file_name: name of the log file to create
-    """
-
-    @functools.wraps(func)
-    def decorator(*args, **kwargs):
-        import logging
-
-        from ..logging_initializer import start_logging
-
-        global _log_file_handler
-        # Add datetime in log file name to not overwrite log file when rerunning test
-        log_path = Path.cwd() / (Path(log_file_name).stem + f"_{datetime.today().strftime('%Y%d%m%H%M%S')}.log")
-        start_logging(log_path=log_path)
-        # Add file handler to root logger and store it in global list
-        file_handler = logging.FileHandler(log_path, "a+")
-        logging.getLogger().addHandler(file_handler)
-        _log_file_handler.append(file_handler)
-        return func(*args, **kwargs)
-
-    return decorator
-
-
-def stop_log_file_decorator(func: Callable, log_file_name: str):
-    """Decorator that will remove all file handlers added by start_log_file_decorator from the root logger after the function call
-
-    :param func: function to execute
-    :param log_file_name: name of the log file to create
-    """
-
-    @functools.wraps(func)
-    def decorator(*args, **kwargs):
-        import logging
-
-        global _log_file_handler
-        try:
-            return func(*args, **kwargs)
-        finally:
-            for handler in _log_file_handler:
-                logging.getLogger().removeHandler(handler)
-                handler.close()
-            _log_file_handler.clear()
-
-    return decorator
 
 
 def handle_can_trace_strategy(

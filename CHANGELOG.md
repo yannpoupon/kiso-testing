@@ -8,6 +8,7 @@ Commits have to follow following convention: https://www.conventionalcommits.org
 
 ### New Features
 
+- Add cli flag to be able to separate the log file by testCase or for every testRun
 - Add improvement for xray ([#508](https://github.com/eclipse/kiso-testing/issues/508))
 
 ## Version 0.29.4 (2024-09-27)
@@ -249,7 +250,7 @@ Commits have to follow following convention: https://www.conventionalcommits.org
 
 - Fix step report show wrong result ([#309](https://github.com/eclipse/kiso-testing/issues/309))
 - Update python version ([#314](https://github.com/eclipse/kiso-testing/issues/314))
-- Handle proxy autostart when being instanciated after auxiliaries and close channel at last
+- Handle proxy autostart when being instantiated after auxiliaries and close channel at last
 - Use shutil.move for renaming the merged trace to avoid windows errors
 - Add junitxml option to default pytest options ([#321](https://github.com/eclipse/kiso-testing/issues/321))
 
@@ -590,7 +591,7 @@ Commits have to follow following convention: https://www.conventionalcommits.org
 
 ### Documentation
 
-- Add whats new for 0.17.0
+- Add what's new for 0.17.0
 - Make usage of TestSuite elements more visible
 - Add quality goals
 
@@ -619,8 +620,8 @@ Commits have to follow following convention: https://www.conventionalcommits.org
 ### Documentation
 
 - Remove not maintained 'list of limitations' section
-- Add section whats new ([#38](https://github.com/eclipse/kiso-testing/issues/38))
-- Replace all occurences of pipenv with poetry
+- Add section what's new ([#38](https://github.com/eclipse/kiso-testing/issues/38))
+- Replace all occurrences of pipenv with poetry
 - Rework getting_started
 
 ### New Features

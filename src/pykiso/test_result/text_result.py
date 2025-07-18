@@ -49,7 +49,7 @@ class ResultStream:
     information from the test run in the log file.
     """
 
-    def __new__(cls, file: Optional[PathType]):
+    def __new__(cls, file: Optional[PathType] = None):
         """Customize class creation to return an instance of this class
         if a file path is provided, or simply ``sys.stderr`` if no file
         path is provided.
@@ -298,6 +298,7 @@ class BannerTestResult(TextTestResult):
         :param flavour: failure reason
         :param errors: list of failed tests with their error message
         """
+
         for test, err in errors:
             self.stream.writeln(self.separator1)
             self.stream.writeln("%s" % test)

@@ -184,6 +184,15 @@ class CommandWithOptionalFlagValues(click.Command):
     help="path to log-file or folder. If not set will log to STDOUT",
 )
 @click.option(
+    "-s",
+    "--log-file-strategy",
+    required=False,
+    default=None,
+    type=click.Choice(["testRun", "testCase"], case_sensitive=True),
+    help="Strategy for the log file creation, 'testRun' for one log file per run, 'testCase' for one log file per test case. Default is one log file for all tests."
+    "This flag need to be used with --log-path option.",
+)
+@click.option(
     "--log-level",
     required=False,
     default="INFO",
@@ -237,7 +246,8 @@ class CommandWithOptionalFlagValues(click.Command):
 def main(
     click_context: click.Context,
     test_configuration_file: Tuple[PathType],
-    log_path: Tuple[PathType] = None,
+    log_path: Tuple[PathType] | None = None,
+    log_file_strategy: str | None = None,
     log_level: str = "INFO",
     report_type: str = "text",
     step_report: Optional[PathType] = None,
@@ -258,6 +268,8 @@ def main(
     :param click_context: click context
     :param test_configuration_file: path to the YAML config file
     :param log_path: path to existing directories or files to write logs to
+    :param log_file_strategy: Strategy for the log file creation, 'testRun' for one log file per run, 'testCase'
+        for one log file per test case. Default is one log file for all tests."
     :param log_level: any of DEBUG, INFO, WARNING, ERROR
     :param report_type: if "test", the standard report, if "junit", a junit report is generated
     :param variant: allow the user to execute a subset of tests based on variants
@@ -273,6 +285,9 @@ def main(
         raise click.UsageError(
             f"Mismatch: {len(log_path)} log files were provided for {len(test_configuration_file)} yaml configuration files"
         )
+
+    if log_file_strategy is not None and log_path is None:
+        raise click.UsageError("The --log-file-strategy option requires the --log-path option to be set.")
 
     if junit is not None:
         report_type = "junit"
@@ -302,14 +317,7 @@ def main(
         # Run tests
         with ConfigRegistry.provide_auxiliaries(cfg_dict):
             exit_code = test_execution.execute(
-                cfg_dict,
-                report_type,
-                yaml_name,
-                user_tags,
-                step_report,
-                pattern,
-                failfast,
-                junit,
+                cfg_dict, report_type, yaml_name, user_tags, step_report, pattern, failfast, junit, log_file_strategy
             )
 
         for handler in logging.getLogger().handlers:
