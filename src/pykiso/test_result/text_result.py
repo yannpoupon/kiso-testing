@@ -28,6 +28,7 @@ import textwrap
 import time
 import typing
 from contextlib import nullcontext
+from pathlib import Path
 from shutil import get_terminal_size
 from typing import List, Optional, TextIO, Union
 from unittest import TextTestResult
@@ -42,6 +43,43 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+class MultiFileHandler:
+    """Class to write simultaneously to multiple files."""
+
+    def __init__(self, files: List[Path] | None = None):
+        self.files: dict[Path, TextIO] = {}
+        if files:
+            for file in files:
+                self.add_file(file)
+
+    def add_file(self, file_path: Path):
+        """Add a file by path to the handler."""
+        if file_path not in self.files:
+            f = open(file_path, "a", encoding="utf-8")
+            self.files[file_path.resolve()] = f
+
+    def remove_file(self, file_path: Path):
+        """Remove a file by path from the handler."""
+        f = self.files.pop(file_path.resolve(), None)
+        if f and hasattr(f, "close"):
+            f.close()
+
+    def write(self, message: str):
+        for f in self.files.values():
+            f.write(message)
+
+    def flush(self):
+        for f in self.files.values():
+            f.flush()
+            os.fsync(f.fileno())
+
+    def close(self):
+        for f in self.files.values():
+            if hasattr(f, "close"):
+                f.close()
+        self.files.clear()
+
+
 class ResultStream:
     """Class that duplicates sys.stderr to a log file if a file path is provided.
 
@@ -49,7 +87,7 @@ class ResultStream:
     information from the test run in the log file.
     """
 
-    def __new__(cls, file: Optional[PathType]):
+    def __new__(cls, file: Optional[PathType] = None):
         """Customize class creation to return an instance of this class
         if a file path is provided, or simply ``sys.stderr`` if no file
         path is provided.
@@ -69,7 +107,7 @@ class ResultStream:
         :param file: file where stderr should be written.
         """
         self.stderr = sys.stderr
-        self.file: TextIO = open(file, mode="a")
+        self.multifile_handler = MultiFileHandler([Path(file) if isinstance(file, str) else file])
         sys.stderr = self
 
     def __del__(self):
@@ -83,12 +121,11 @@ class ResultStream:
 
     def write(self, message: str):
         self.stderr.write(message)
-        self.file.write(message)
+        self.multifile_handler.write(message)
 
     def flush(self):
         self.stderr.flush()
-        self.file.flush()
-        os.fsync(self.file.fileno())
+        self.multifile_handler.flush()
 
     def close(self):
         """Close or restore each stream."""
@@ -96,9 +133,9 @@ class ResultStream:
             sys.stderr = self.stderr
             self.stderr = None
 
-        if self.file is not None:
-            self.file.close()
-            self.file = None
+        if self.multifile_handler is not None:
+            self.multifile_handler.close()
+            self.multifile_handler = None
 
 
 class BannerTestResult(TextTestResult):
@@ -298,6 +335,7 @@ class BannerTestResult(TextTestResult):
         :param flavour: failure reason
         :param errors: list of failed tests with their error message
         """
+
         for test, err in errors:
             self.stream.writeln(self.separator1)
             self.stream.writeln("%s" % test)
