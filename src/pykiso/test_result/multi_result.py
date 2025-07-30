@@ -20,17 +20,24 @@ Multi test result
 """
 from __future__ import annotations
 
+import logging
+import unittest
+from datetime import datetime
 from inspect import signature
-from typing import Any, List, Optional, TextIO, Union
-from unittest import TestResult
+from pathlib import Path
+from typing import Any, List, Literal, Optional, Union
+from unittest import TestResult, util
 from unittest.case import _SubTest
 
 from pykiso.types import ExcInfoType
 
+from ..logging_initializer import get_internal_level, get_logging_options
 from ..test_coordinator.test_case import BasicTest
 from ..test_coordinator.test_suite import BaseTestSuite
 from .text_result import BannerTestResult
 from .xml_result import XmlTestResult
+
+test_runner_instance: Optional[unittest.TextTestRunner] = None
 
 
 class MultiTestResult:
@@ -38,12 +45,22 @@ class MultiTestResult:
     test for all the classes.
     """
 
-    def __init__(self, *result_classes: TestResult):
+    def __init__(
+        self,
+        *result_classes: TestResult,
+        log_file_strategy: Literal["testRun,testCase"] | None = None,
+    ):
         """Initialize parameter
 
         :param result_classes: test result classes
+        :param log_file_strategy: strategy to use for the log file
+            - testRun: log file will be created for each test run
+            - testCase: log file will be created for each test case
         """
-        self.result_classes = result_classes
+        self.result_classes: list[TestResult] = result_classes
+        self._log_file_strategy = log_file_strategy
+        self._list_test_results: list[BasicTest] = []
+        self.current_log_file: Path | None = None
 
     def __call__(self, *args, **kwargs) -> MultiTestResult:
         """Initialize the result classes with the parameters passed in arguments."""
@@ -83,7 +100,7 @@ class MultiTestResult:
         """
         super().__setattr__(name, value)
         # condition to avoid infinite loop with the __getattr__
-        if name != "result_classes":
+        if name not in ["result_classes", "_log_file_strategy", "_list_test_results", "current_log_file"]:
             for result in self.result_classes:
                 setattr(result, name, value)
 
@@ -99,8 +116,42 @@ class MultiTestResult:
 
         :param test: running testcase
         """
+        self.handle_log_file_strategy(test)
+
         for result in self.result_classes:
             result.startTest(test)
+
+    def handle_log_file_strategy(self, test: Union[BasicTest, BaseTestSuite]) -> None:
+        """Handle the log file strategy for the given test.
+
+        :param test: The test case or test suite being executed.
+        """
+        if self._log_file_strategy is None:
+            return
+
+        log_options = get_logging_options()
+
+        if test.__class__ not in self._list_test_results or self._log_file_strategy == "testRun":
+            log_file_name = util.strclass(test.__class__).replace(".", "_").replace("-", "_")
+            if self._log_file_strategy == "testRun":
+                log_file_name += "_" + test._testMethodName
+
+            log_file_name += f"_{datetime.today().strftime('%Y%d%m%H%M%S')}.log"
+            self.current_log_file = log_options.log_path.parent / log_file_name
+
+        # Setup the file handler for logging
+        log_format = logging.Formatter("%(asctime)s [%(levelname)s] %(module)s:%(lineno)d: %(message)s")
+        root_logger = logging.getLogger()
+        file_handler = logging.FileHandler(self.current_log_file, "a+")
+        file_handler.setFormatter(log_format)
+        file_handler.name = "strategy_log_file_handler"
+        # always include internal logs in log files
+        file_handler.setLevel(get_internal_level(log_options.log_level))
+        root_logger.addHandler(file_handler)
+
+        # Add the log file to the test runner instance to get the banner information
+        test_runner_instance.stream.stream.multifile_handler.add_file(self.current_log_file)
+        self._list_test_results.append(test.__class__)
 
     def startTestRun(self) -> None:
         """Call the startTestRun function for all result classes."""
@@ -124,6 +175,16 @@ class MultiTestResult:
         """
         for result in self.result_classes:
             result.stopTest(test)
+
+        if self._log_file_strategy is None:
+            return
+        # Remove the log file
+        test_runner_instance.stream.stream.multifile_handler.remove_file(self.current_log_file)
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers:
+            if handler.name == "strategy_log_file_handler":
+                root_logger.removeHandler(handler)
+                handler.close()
 
     def addSuccess(self, test: Union[BasicTest, BaseTestSuite]) -> None:
         """Call the addSuccess function for all result classes.

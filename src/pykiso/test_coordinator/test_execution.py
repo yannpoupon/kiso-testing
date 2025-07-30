@@ -27,11 +27,11 @@ from __future__ import annotations
 
 import functools
 import os
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
 from unittest import util
 from unittest.loader import VALID_MODULE_NAME
 
-from pykiso.test_result.multi_result import MultiTestResult
+import pykiso.test_result.multi_result as multi_result
 
 if TYPE_CHECKING:
     from ..lib.connectors.cc_pcan_can import CCPCanCan
@@ -120,7 +120,7 @@ def apply_tag_filter(all_tests_to_run: unittest.TestSuite, usr_tags: Dict[str, L
         for cli_tag_id, cli_tag_value in usr_tags.items():
             # skip any test case that doesn't define a CLI-provided tag name
             if cli_tag_id not in test_case.tag.keys():
-                test_case._skip_msg = f"provided tag {cli_tag_id!r} not present in test tags"
+                test_case._skip_msg = f"provided tag {cli_tag_id!r} not present in test tags"  # noqa: E713
                 return True
             # skip any test case that which tag value don't match the provided tag's value
             cli_tag_values = cli_tag_value if isinstance(cli_tag_value, list) else [cli_tag_value]
@@ -415,6 +415,7 @@ def execute(
     pattern_inject: Optional[str] = None,
     failfast: bool = False,
     junit_path: str = "reports",
+    log_file_strategy: Literal["testRun", "testCase"] | None = None,
 ) -> int:
     """Create test environment based on test configuration.
 
@@ -429,6 +430,7 @@ def execute(
         run specific tests.
     :param failfast: stop the test run on the first error or failure.
     :param junit_path: path (file or dir) to junit report
+    :param log_file_strategy: strategy for the log file creation
 
     :return: exit code corresponding to the result of the test execution
         (tests failed, unexpected exception, ...)
@@ -456,6 +458,7 @@ def execute(
             )
 
         log_file_path = get_logging_options().log_path
+        current_time = datetime.today()
         # TestRunner selection: generate or not a junit report. Start the tests and publish the results
         if report_type == "junit":
             report_path = junit_path
@@ -464,30 +467,37 @@ def execute(
                 junit_report_path = str(full_report_path)
                 full_report_path.parent.mkdir(exist_ok=True)
             else:
-                junit_report_path = str(full_report_path / Path(time.strftime(f"%Y-%m-%d_%H-%M-%S-{report_name}.xml")))
+                junit_report_path = str(
+                    full_report_path / Path(current_time.strftime(f"%Y-%m-%d_%H-%M-%S-{report_name}.xml"))
+                )
                 full_report_path.mkdir(exist_ok=True)
             with open(junit_report_path, "wb") as junit_output, ResultStream(log_file_path) as stream:
-                test_runner = xmlrunner.XMLTestRunner(
+                multi_result.test_runner_instance = xmlrunner.XMLTestRunner(
                     output=junit_output,
-                    resultclass=MultiTestResult(XmlTestResult, BannerTestResult),
+                    resultclass=multi_result.MultiTestResult(
+                        XmlTestResult, BannerTestResult, log_file_strategy=log_file_strategy
+                    ),
                     failfast=failfast,
                     verbosity=0,
                     stream=stream,
                 )
-                result = test_runner.run(all_tests_to_run)
+                result = multi_result.test_runner_instance.run(all_tests_to_run)
+                # Generate the html step report
+                if step_report is not None:
+                    generate_step_report(result, step_report)
+
         else:
             with ResultStream(log_file_path) as stream:
-                test_runner = unittest.TextTestRunner(
+                multi_result.test_runner_instance = unittest.TextTestRunner(
                     stream=stream,
-                    resultclass=MultiTestResult(BannerTestResult),
+                    resultclass=multi_result.MultiTestResult(BannerTestResult, log_file_strategy=log_file_strategy),
                     failfast=failfast,
                     verbosity=0,
                 )
-                result = test_runner.run(all_tests_to_run)
-
-        # Generate the html step report
-        if step_report is not None:
-            generate_step_report(result, step_report)
+                result = multi_result.test_runner_instance.run(all_tests_to_run)
+                # Generate the html step report
+                if step_report is not None:
+                    generate_step_report(result, step_report)
 
         exit_code = failure_and_error_handling(result)
     except NameError:
