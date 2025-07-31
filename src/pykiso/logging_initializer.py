@@ -24,6 +24,7 @@ import re
 import sys
 import time
 from ast import literal_eval
+from copy import deepcopy
 from functools import partialmethod, wraps
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Union
@@ -203,6 +204,9 @@ def initialize_loggers(loggers: Optional[List[str]]) -> None:
     global active_loggers
     if loggers is None:
         loggers = list()
+    else:
+        loggers = deepcopy(loggers)
+
     # keyword 'all' should keep all loggers to the configured level
     if "all" in loggers:
         logging.internal_warning("All loggers are activated, this could lead to performance issues.")
