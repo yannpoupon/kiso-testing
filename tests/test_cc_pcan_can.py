@@ -826,7 +826,7 @@ def test_merge_trc(trc_files, mock_can_bus, mock_PCANBasic):
 
     cc_pcan._merge_trc()
 
-    with open(result_path, "r", encoding='utf-8') as trc:
+    with open(result_path, "r", encoding="utf-8") as trc:
         result = trc.read()
 
     assert trc_merge_data == result
@@ -842,7 +842,7 @@ def test_merge_trc_with_file_name(trc_files, mock_can_bus, mock_PCANBasic):
     result_path = trc_files[0]
     cc_pcan._merge_trc()
 
-    with open(result_path, "r", encoding='utf-8') as trc:
+    with open(result_path, "r", encoding="utf-8") as trc:
         result = trc.read()
 
     assert trc_merge_data == result
@@ -859,7 +859,7 @@ def test_merge_trc_with_old_file_version(trc_files_v1_1, mock_can_bus, mock_PCAN
     result_path = trc_files_v1_1[0]
     cc_pcan._merge_trc()
 
-    with open(result_path, "r", encoding='utf-8') as trc:
+    with open(result_path, "r", encoding="utf-8") as trc:
         result = trc.read()
 
     assert trc_data_start_4 + trc_data_end == result
@@ -880,7 +880,7 @@ def test_merge_trc_with_multiple_dir(trc_files_different_directory, mock_can_bus
     cc_pcan._merge_trc()
 
     # Check if all the trace from the different repo has been merged in one file
-    with open(result_path, "r", encoding='utf-8') as trc:
+    with open(result_path, "r", encoding="utf-8") as trc:
         result = trc.read()
     assert trc_merge_data == result
 
@@ -1069,3 +1069,52 @@ def test_start_pcan_already_started(caplog):
     with caplog.at_level(logging.WARNING):
         cc_pcan._cc_open()
     assert "Pcan is already opened" in caplog.text
+
+
+def test_rename_trc_truncate_filename(tmp_path, mock_can_bus, mock_PCANBasic, caplog, mocker):
+    """Test that _rename_trc truncates filenames that are too long"""
+    long_name = "a" * 260 + ".trc"
+    expected_truncated = "a" * 251 + ".trc"
+
+    trace_file = tmp_path / "temp_trace.trc"
+    trace_file.touch()
+
+    cc_pcan = CCPCanCan(trace_path=tmp_path)
+    cc_pcan._trc_file_names[tmp_path] = [long_name]
+
+    mock_rename = mocker.patch.object(Path, "rename")
+    mock_rename.side_effect = [OSError("Filename too long"), None]
+
+    with caplog.at_level(logging.WARNING):
+        cc_pcan._rename_trc()
+
+    assert "Filename too long, truncating" in caplog.text
+    assert long_name in caplog.text
+    assert expected_truncated in caplog.text
+
+    assert mock_rename.call_count == 2
+    mock_rename.assert_any_call(tmp_path / long_name)
+    mock_rename.assert_any_call(tmp_path / expected_truncated)
+
+
+def test_rename_trc_oserror_short_filename(tmp_path, mock_can_bus, mock_PCANBasic, caplog, mocker):
+    """Test that _rename_trc re-raises OSError when filename is not too long"""
+    short_name = "short_filename.trc"
+
+    trace_file = tmp_path / "temp_trace.trc"
+    trace_file.touch()
+
+    cc_pcan = CCPCanCan(trace_path=tmp_path)
+    cc_pcan._trc_file_names[tmp_path] = [short_name]
+
+    mock_rename = mocker.patch.object(Path, "rename")
+    mock_rename.side_effect = OSError("Permission denied")
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(OSError, match="Permission denied"):
+            cc_pcan._rename_trc()
+
+    assert "Failed to rename trace file: Permission denied" in caplog.text
+
+    assert mock_rename.call_count == 1
+    mock_rename.assert_called_once_with(tmp_path / short_name)
