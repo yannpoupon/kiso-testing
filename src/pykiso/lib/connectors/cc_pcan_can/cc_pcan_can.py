@@ -537,7 +537,18 @@ class CCPCanCan(CChannel):
             list_of_traces = sorted(trace_path.glob("*.trc"), key=os.path.getmtime)[-len(trace_file_names) :]
             for index, file_name in enumerate(trace_file_names):
                 if file_name is not None:
-                    list_of_traces[index].rename(trace_path / file_name)
+                    try:
+                        list_of_traces[index].rename(trace_path / file_name)
+                    except OSError as e:
+                        if len(file_name) > 255:  # Most filesystems have 255 char limit
+                            # Truncate filename while preserving extension
+                            name, ext = os.path.splitext(file_name)
+                            truncated_name = name[len(ext) - 255 :] + ext
+                            log.warning("Filename too long, truncating '%s' to '%s'", file_name, truncated_name)
+                            list_of_traces[index].rename(trace_path / truncated_name)
+                        else:
+                            log.error("Failed to rename trace file: %s", e)
+                            raise
 
     def shutdown(self) -> None:
         """Destructor method."""
