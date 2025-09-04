@@ -169,6 +169,7 @@ class UdsAuxiliary(UdsBaseAuxiliary):
         timeout_in_s: float = 6,
         response_required: bool = True,
         use_viztracer: bool = False,
+        path: Path = Path("."),
     ) -> Union[UdsResponse, bool]:
         """Send a UDS diagnostic request to the target ECU and check response.
         Deprecated alias of `send_uds` that returns `False` on error,
@@ -200,7 +201,7 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             if use_viztracer:
                 if time.time() - start_time > 4:
                     viztracer_name = f"long_uds_{random.randint(0, 100000)}.json"
-                    viztrace.save(viztracer_name)
+                    viztrace.save(str(path / viztracer_name))
                     log.error(f"UDS command took more than 4 seconds, trace saved to {viztracer_name}")
 
                 viztrace.stop()
