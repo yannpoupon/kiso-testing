@@ -168,6 +168,7 @@ class UdsAuxiliary(UdsBaseAuxiliary):
         msg_to_send: Union[bytes, List[int], tuple],
         timeout_in_s: float = 6,
         response_required: bool = True,
+        use_viztracer: bool = False,
     ) -> Union[UdsResponse, bool]:
         """Send a UDS diagnostic request to the target ECU and check response.
         Deprecated alias of `send_uds` that returns `False` on error,
@@ -185,8 +186,10 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             not expected and the command is properly sent otherwise
             False
         """
-        start_time = time.time()
-        viztrace.start()
+
+        if use_viztracer:
+            start_time = time.time()
+            viztrace.start()
         try:
             return True if (response := self.send_uds(msg_to_send, response_required)) is None else response
         except self.errors.ResponseNotReceivedError as exc:
@@ -194,13 +197,14 @@ class UdsAuxiliary(UdsBaseAuxiliary):
         except Exception:
             return False
         finally:
-            if time.time() - start_time > 4:
-                viztracer_name = f"long_uds_{random.randint(0, 100000)}.json"
-                viztrace.save(viztracer_name)
-                log.error(f"UDS command took more than 4 seconds, trace saved to {viztracer_name}")
+            if use_viztracer:
+                if time.time() - start_time > 4:
+                    viztracer_name = f"long_uds_{random.randint(0, 100000)}.json"
+                    viztrace.save(viztracer_name)
+                    log.error(f"UDS command took more than 4 seconds, trace saved to {viztracer_name}")
 
-            viztrace.stop()
-            viztrace.clear()
+                viztrace.stop()
+                viztrace.clear()
 
     @staticmethod
     def check_max_pending_time(resp: UdsResponse, max_pending_time: float) -> bool:
