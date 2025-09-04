@@ -31,6 +31,9 @@ try:
 except ImportError as e:
     raise ImportError(f"{e.name} dependency missing, consider installing pykiso with 'pip install pykiso[can]'")
 
+import random
+
+from pykiso.cli import viztrace
 from pykiso.connector import CChannel
 
 from .common import uds_exceptions
@@ -182,12 +185,22 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             not expected and the command is properly sent otherwise
             False
         """
+        start_time = time.time()
+        viztrace.start()
         try:
             return True if (response := self.send_uds(msg_to_send, response_required)) is None else response
         except self.errors.ResponseNotReceivedError as exc:
             raise exc
         except Exception:
             return False
+        finally:
+            if time.time() - start_time > 4:
+                viztracer_name = f"long_uds_{random.randint(0, 100000)}.json"
+                viztrace.save(viztracer_name)
+                log.error(f"UDS command took more than 4 seconds, trace saved to {viztracer_name}")
+
+            viztrace.stop()
+            viztrace.clear()
 
     @staticmethod
     def check_max_pending_time(resp: UdsResponse, max_pending_time: float) -> bool:

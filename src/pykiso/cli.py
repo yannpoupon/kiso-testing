@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import click
+from viztracer import VizTracer
 
 import pykiso.profiling  # noqa: needs to be imported to trace from the beginning
 
@@ -40,6 +41,8 @@ from .test_setup.config_registry import ConfigRegistry
 from .types import PathType
 
 UNRESOLVED_THREAD_TIMEOUT = 10
+
+viztrace = VizTracer(output_file="pykiso_viztrace.json")
 
 
 def eval_user_tags(click_context: click.Context) -> Dict[str, List[str]]:
