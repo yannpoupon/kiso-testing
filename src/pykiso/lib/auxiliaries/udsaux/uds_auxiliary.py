@@ -138,7 +138,7 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             if log.isEnabledFor(logging.getLogger().level):
                 log.internal_info(
                     "UDS request to send '%s'",
-                    ["0x{:02X}".format(i) for i in msg_to_send],
+                    ["0x{:02X}".format(i) for i in msg_to_send[:6]],
                 )
             resp = self.uds_config.send(
                 msg_to_send,
@@ -160,7 +160,8 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             resp_time=self.uds_config.last_resp_time,
             pending_resp_times=self.uds_config.last_pending_resp_times,
         )
-        log.internal_info("UDS response received %s", resp)
+        if log.isEnabledFor(logging.getLogger().level):
+            log.internal_info("UDS response received %s", resp.get_truncated_representation())
         return resp
 
     def send_uds_raw(
