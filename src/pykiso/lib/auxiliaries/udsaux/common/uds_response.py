@@ -53,13 +53,27 @@ class UdsResponse(UserList):
         self.resp_time = resp_time
         self.pending_resp_times = pending_resp_times
 
-    def __repr__(self):
-        if self.data:
-            if self.is_negative:
-                return f"NegativeUdsResponse({bytes(self.data).hex(sep=' ')}, nrc={self.nrc.name})"
-            return f"{self.__class__.__name__}({bytes(self.data).hex(sep=' ')})"
-        else:
+    def __repr__(self, truncate=False):
+        """Return a string representation of the UDS response.
+
+        :param truncate: If True, only show first 6 bytes of data
+        :return: String representation of UdsResponse
+        """
+        if not self.data:
             return f"{self.__class__.__name__} no data."
+
+        data_to_show = self.data[:6] if truncate else self.data
+
+        if self.is_negative:
+            return f"NegativeUdsResponse({bytes(data_to_show).hex(sep=' ')}, nrc={self.nrc.name})"
+        return f"{self.__class__.__name__}({bytes(data_to_show).hex(sep=' ')})"
+
+    def get_truncated_representation(self) -> str:
+        """Return a truncated string representation of the UDS response.
+
+        :return: Truncated string representation showing only first 6 bytes
+        """
+        return self.__repr__(truncate=True)
 
 
 class NegativeResponseCode(IntEnum):
