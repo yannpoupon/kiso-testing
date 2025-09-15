@@ -135,7 +135,7 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             if log.isEnabledFor(logging.getLogger().level):
                 log.internal_info(
                     "UDS request to send '%s'",
-                    ["0x{:02X}".format(i) for i in msg_to_send],
+                    ["0x{:02X}".format(i) for i in msg_to_send[:6]],
                 )
             resp = self.uds_config.send(
                 msg_to_send,
@@ -157,14 +157,12 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             resp_time=self.uds_config.last_resp_time,
             pending_resp_times=self.uds_config.last_pending_resp_times,
         )
-        log.internal_info("UDS response received %s", resp)
+        if log.isEnabledFor(logging.getLogger().level):
+            log.internal_info("UDS response received %s", resp.get_truncated_representation())
         return resp
 
     def send_uds_raw(
-        self,
-        msg_to_send: Union[bytes, List[int], tuple],
-        timeout_in_s: float = 6,
-        response_required: bool = True,
+        self, msg_to_send: Union[bytes, List[int], tuple], timeout_in_s: float = 6, response_required: bool = True
     ) -> Union[UdsResponse, bool]:
         """Send a UDS diagnostic request to the target ECU and check response.
         Deprecated alias of `send_uds` that returns `False` on error,
@@ -182,6 +180,7 @@ class UdsAuxiliary(UdsBaseAuxiliary):
             not expected and the command is properly sent otherwise
             False
         """
+
         try:
             return True if (response := self.send_uds(msg_to_send, response_required)) is None else response
         except self.errors.ResponseNotReceivedError as exc:
