@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pykiso"
-version = "1.6.4"
+version = "1.7.0"
 description = "Embedded integration testing framework."
 authors = ["Sebastian Fischer <sebastian.fischer@de.bosch.com>"]
 license = "Eclipse Public License - v 2.0"
@@ -31,7 +31,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-Jinja2 = "^3.0.0"
+Jinja2 = "^3.1.6"
 importlib-metadata = { version = ">=4.12,<7.0", python = "<3.8" }
 black = { version = "*", optional = true }
 brainstem = "*"
@@ -59,9 +59,10 @@ robotframework = "3.2.2"
 tabulate = ">=0.8.9,<0.10.0"
 unittest-xml-reporting = "^3.2.0"
 viztracer = "^1.0.1"
-fastapi = "^0.115.3"
+fastapi = ">=0.115.3"
 uvicorn = "^0.32.0"
 xmltodict = "^0.14.2"
+starlette = ">=0.47.2"
 
 [tool.poetry.extras]
 plugins = [
