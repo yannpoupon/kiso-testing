@@ -88,12 +88,13 @@ class CCPCanCan(CChannel):
         data_tseg2: int = 2,
         data_sjw: int = 2,
         is_extended_id: bool = False,
-        remote_id: int = None,
-        can_filters: list = None,
+        remote_id: int | None = None,
+        can_filters: list | None = None,
         logging_activated: bool = True,
         bus_error_warning_filter: bool = False,
         merge_trc_logs: bool = True,
         strategy_trc_file: Optional[Literal["testRun", "testCase"]] = None,
+        pcan_debug_log: bool = True,
         **kwargs,
     ):
         """Initialize can channel settings.
@@ -164,6 +165,7 @@ class CCPCanCan(CChannel):
         self.logging_activated = logging_activated
         self.raw_pcan_interface = None
         self.strategy_trc_file = strategy_trc_file
+        self.pcan_debug_log = pcan_debug_log
         # Set a timeout to send the signal to the GIL to change thread.
         # In case of a multi-threading system, all tasks will be called one after the other.
         self.timeout = 1e-6
@@ -228,11 +230,49 @@ class CCPCanCan(CChannel):
             can_filters=self.can_filters,
         )
 
-        if self.logging_activated and self.raw_pcan_interface is None:
+        if (self.logging_activated or self.pcan_debug_log) and self.raw_pcan_interface is None:
             self.raw_pcan_interface = PCANBasic.PCANBasic()
+            if self.pcan_debug_log:
+                self._pcan_configure_debug_log()
             if self.strategy_trc_file is None:
                 self._pcan_configure_trace()
+
         self.opened = True
+
+    def _pcan_configure_debug_log(self) -> None:
+        """Configure PCAN dongle to create a debug log file.
+
+        If an error occurs, the debug log will not be started and the error logged.
+        No exception is thrown in this case.
+        """
+        pcan_channel = getattr(PCANBasic, self.channel)
+        try:
+            self._pcan_set_value(
+                pcan_channel,
+                PCANBasic.PCAN_LOG_CONFIGURE,
+                PCANBasic.LOG_FUNCTION_ALL,
+            )
+            self._pcan_set_value(
+                pcan_channel,
+                PCANBasic.PCAN_LOG_LOCATION,
+                bytes(self.trace_path.parent / "pcan_debug_logs.log"),
+            )
+            log.info(
+                "Debug logfile path in PCAN device configured to %s",
+                self.trace_path.parent / "pcan_debug_logs.log",
+            )
+
+            self._pcan_set_value(
+                pcan_channel,
+                PCANBasic.PCAN_LOG_STATUS,
+                PCANBasic.PCAN_PARAMETER_ON,
+            )
+            log.info("Debug log activated")
+        except RuntimeError:
+            log.error(f"Debug logging for {self.channel} not activated")
+        except OSError as e:
+            log.error(f"Can not create log folder for PCAN debug logs: {e}")
+            log.error(f"Debug logging for {self.channel} not activated")
 
     def _pcan_configure_trace(self) -> None:
         """Configure PCAN dongle to create a trace file.
@@ -306,7 +346,7 @@ class CCPCanCan(CChannel):
             log.error(f"Can not create log folder for PCAN logs: {e}")
             log.error(f"Logging for {self.channel} not activated")
 
-    def _pcan_set_value(self, channel, parameter, buffer) -> None:
+    def _pcan_set_value(self, channel: int, parameter: int, buffer: bytes) -> None:
         """Set a value in the PCAN api.
 
         If this is not successful, a RuntimeError is returned, as well as the
@@ -576,9 +616,10 @@ class CCPCanCan(CChannel):
             PCANBasic.PCAN_TRACE_STATUS,
             PCANBasic.PCAN_PARAMETER_OFF,
         )
+        self._pcan_set_value(pcan_channel, PCANBasic.PCAN_LOG_STATUS, PCANBasic.PCAN_PARAMETER_OFF)
         self.trace_running = False
 
-    def start_pcan_trace(self, trace_path: Optional[str] = None, trace_size: int = None) -> None:
+    def start_pcan_trace(self, trace_path: Optional[str] = None, trace_size: int | None = None) -> None:
         """Start the PCAN trace, the trace file will be renamed after the pcan trace will be stopped.
 
         :param trace_path: Trace path where the trace should be written if None is given it will use
