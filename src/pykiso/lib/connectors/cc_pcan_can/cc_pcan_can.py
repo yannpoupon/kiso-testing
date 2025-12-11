@@ -254,11 +254,11 @@ class CCPCanCan(CChannel):
             self._pcan_set_value(
                 PCANBasic.PCAN_NONEBUS,
                 PCANBasic.PCAN_LOG_LOCATION,
-                bytes(self.trace_path.parent / "pcan.log"),
+                bytes(self.trace_path.parent),
             )
             log.info(
                 "Debug logfile path in PCAN device configured to %s",
-                self.trace_path.parent / "pcan_debug_logs.log",
+                self.trace_path.parent,
             )
 
             self._pcan_set_value(
