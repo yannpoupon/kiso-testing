@@ -245,17 +245,16 @@ class CCPCanCan(CChannel):
         If an error occurs, the debug log will not be started and the error logged.
         No exception is thrown in this case.
         """
-        pcan_channel = getattr(PCANBasic, self.channel)
         try:
             self._pcan_set_value(
-                pcan_channel,
+                PCANBasic.PCAN_NONEBUS,
                 PCANBasic.PCAN_LOG_CONFIGURE,
-                PCANBasic.LOG_FUNCTION_ALL,
+                PCANBasic.LOG_FUNCTION_DEFAULT,
             )
             self._pcan_set_value(
-                pcan_channel,
+                PCANBasic.PCAN_NONEBUS,
                 PCANBasic.PCAN_LOG_LOCATION,
-                bytes(self.trace_path.parent / "pcan_debug_logs.log"),
+                bytes(self.trace_path.parent / "pcan.log"),
             )
             log.info(
                 "Debug logfile path in PCAN device configured to %s",
@@ -263,7 +262,7 @@ class CCPCanCan(CChannel):
             )
 
             self._pcan_set_value(
-                pcan_channel,
+                PCANBasic.PCAN_NONEBUS,
                 PCANBasic.PCAN_LOG_STATUS,
                 PCANBasic.PCAN_PARAMETER_ON,
             )
@@ -299,7 +298,7 @@ class CCPCanCan(CChannel):
                 self._pcan_set_value(
                     pcan_channel,
                     PCANBasic.PCAN_TRACE_LOCATION,
-                    bytes(self.trace_path),
+                    str(self.trace_path).encode("ascii"),
                 )
                 log.internal_info(
                     "Tracefile path in PCAN device configured to %s",
@@ -346,15 +345,15 @@ class CCPCanCan(CChannel):
             log.error(f"Can not create log folder for PCAN logs: {e}")
             log.error(f"Logging for {self.channel} not activated")
 
-    def _pcan_set_value(self, channel: int, parameter: int, buffer: bytes) -> None:
+    def _pcan_set_value(self, channel, parameter, buffer: Union[bytes, int]) -> None:
         """Set a value in the PCAN api.
 
         If this is not successful, a RuntimeError is returned, as well as the
         PCAN error text is logged, if possible.
 
-        :param channel: Channel for PCANBasic.SetValue
-        :param parameter: Parameter for PCANBasic.SetValue
-        :param buffer: Buffer for PCANBasic.SetValue
+        :param channel: Channel for PCANBasic.SetValue (TPCANHandle or int)
+        :param parameter: Parameter for PCANBasic.SetValue (TPCANParameter or int)
+        :param buffer: Buffer for PCANBasic.SetValue (can be bytes or int)
 
         :raises RuntimeError: Raised if the function is not successful
         """
@@ -370,7 +369,9 @@ class CCPCanCan(CChannel):
         else:
             if result != PCANBasic.PCAN_ERROR_OK:
                 _, error_msg = self.raw_pcan_interface.GetErrorText(result)
-                log.error(error_msg)
+                log.error(
+                    "Error while trying to set parameter: %s, with val %s, error is %s", parameter, buffer, error_msg
+                )
                 raise RuntimeError(f"Error configuring logging on PCAN: {result}")
 
     def _cc_close(self) -> None:
@@ -616,7 +617,7 @@ class CCPCanCan(CChannel):
             PCANBasic.PCAN_TRACE_STATUS,
             PCANBasic.PCAN_PARAMETER_OFF,
         )
-        self._pcan_set_value(pcan_channel, PCANBasic.PCAN_LOG_STATUS, PCANBasic.PCAN_PARAMETER_OFF)
+        self._pcan_set_value(PCANBasic.PCAN_NONEBUS, PCANBasic.PCAN_LOG_STATUS, PCANBasic.PCAN_PARAMETER_OFF)
         self.trace_running = False
 
     def start_pcan_trace(self, trace_path: Optional[str] = None, trace_size: int | None = None) -> None:
