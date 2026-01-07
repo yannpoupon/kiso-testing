@@ -249,7 +249,7 @@ class CCPCanCan(CChannel):
             self._pcan_set_value(
                 PCANBasic.PCAN_NONEBUS,
                 PCANBasic.PCAN_LOG_CONFIGURE,
-                PCANBasic.LOG_FUNCTION_DEFAULT | PCANBasic.LOG_FUNCTION_LEAVE,
+                PCANBasic.LOG_FUNCTION_DEFAULT | PCANBasic.LOG_FUNCTION_LEAVE | PCANBasic.LOG_FUNCTION_ENTRY,
             )
             self._pcan_set_value(
                 PCANBasic.PCAN_NONEBUS,
