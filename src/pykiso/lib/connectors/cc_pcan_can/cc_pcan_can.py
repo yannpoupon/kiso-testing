@@ -249,7 +249,10 @@ class CCPCanCan(CChannel):
             self._pcan_set_value(
                 PCANBasic.PCAN_NONEBUS,
                 PCANBasic.PCAN_LOG_CONFIGURE,
-                PCANBasic.LOG_FUNCTION_DEFAULT | PCANBasic.LOG_FUNCTION_LEAVE | PCANBasic.LOG_FUNCTION_ENTRY,
+                PCANBasic.LOG_FUNCTION_DEFAULT
+                | PCANBasic.LOG_FUNCTION_LEAVE
+                | PCANBasic.LOG_FUNCTION_ENTRY
+                | PCANBasic.LOG_FUNCTION_PARAMETERS,
             )
             self._pcan_set_value(
                 PCANBasic.PCAN_NONEBUS,
@@ -380,6 +383,8 @@ class CCPCanCan(CChannel):
             log.warning("Pcan is already closed")
             return
         self.stop_pcan_trace()
+        self._pcan_set_value(PCANBasic.PCAN_NONEBUS, PCANBasic.PCAN_LOG_STATUS, PCANBasic.PCAN_PARAMETER_OFF)
+
         self.bus.shutdown()
         self.bus = None
         if self.logging_activated:
@@ -617,7 +622,6 @@ class CCPCanCan(CChannel):
             PCANBasic.PCAN_TRACE_STATUS,
             PCANBasic.PCAN_PARAMETER_OFF,
         )
-        self._pcan_set_value(PCANBasic.PCAN_NONEBUS, PCANBasic.PCAN_LOG_STATUS, PCANBasic.PCAN_PARAMETER_OFF)
         self.trace_running = False
 
     def start_pcan_trace(self, trace_path: Optional[str] = None, trace_size: int | None = None) -> None:
